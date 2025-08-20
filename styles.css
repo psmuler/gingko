@@ -1,0 +1,283 @@
+/* 俳句鑑賞＆記録アプリ スタイル */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+    line-height: 1.6;
+    color: #333;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+header {
+    background-color: #2c5aa0;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    font-size: 1.5rem;
+    font-weight: 400;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#map-container {
+    flex: 1;
+    position: relative;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+    background-color: #f0f0f0;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 1.2rem;
+    }
+}
+
+/* Leaflet地図のスタイル調整 */
+.leaflet-container {
+    background-color: #f8f9fa;
+}
+
+.leaflet-control-attribution {
+    font-size: 10px;
+}
+
+/* カスタムマーカー用のスタイル */
+.haiku-marker {
+    background-color: #e74c3c;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.haiku-marker.句碑 {
+    background-color: #e74c3c;
+}
+
+.haiku-marker.紀行文 {
+    background-color: #3498db;
+}
+
+.haiku-marker.ゆかりの地 {
+    background-color: #2ecc71;
+}
+
+/* ポップアップスタイル */
+.haiku-popup {
+    font-family: 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+    max-width: 280px;
+}
+
+.popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.location-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c5aa0;
+    margin: 0;
+    flex: 1;
+}
+
+.location-type-badge {
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 500;
+}
+
+.location-type-badge.句碑 {
+    background-color: #e74c3c;
+}
+
+.location-type-badge.紀行文 {
+    background-color: #3498db;
+}
+
+.location-type-badge.ゆかりの地 {
+    background-color: #2ecc71;
+}
+
+.haiku-content {
+    margin: 12px 0;
+}
+
+.haiku-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border-left: 3px solid #2c5aa0;
+}
+
+.poet-name {
+    text-align: right;
+    font-style: italic;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.haiku-description {
+    font-size: 0.9rem;
+    color: #666;
+    margin: 8px 0;
+    padding: 8px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+}
+
+.popup-actions {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.btn-detail {
+    background-color: #2c5aa0;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+}
+
+.btn-detail:hover {
+    background-color: #1e4080;
+}
+
+/* ローディングオーバーレイ */
+#loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.loading-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #2c5aa0;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-message {
+    color: #333;
+    font-size: 1rem;
+}
+
+/* メッセージオーバーレイ */
+.message-overlay {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.message-content {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.message-overlay.error .message-content {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.message-overlay.info .message-content {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.message-text {
+    flex: 1;
+    margin-right: 10px;
+}
+
+.message-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: inherit;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.message-close:hover {
+    opacity: 0.7;
+}
