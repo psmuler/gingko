@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
 async function initializeApp() {
     try {
         showLoadingState('地図を初期化中...');
-        initializeMap();
+        await initializeMapWithLocation();
         
         showLoadingState('俳句データを読み込み中...');
         await loadHaikuData();
@@ -27,7 +27,39 @@ async function initializeApp() {
     }
 }
 
-// 地図初期化
+// 位置情報付き地図初期化
+async function initializeMapWithLocation() {
+    try {
+        // まず基本的な地図を初期化
+        initializeMap();
+        
+        // 現在地を取得して地図の中心を設定
+        const userLocation = await getUserLocation();
+        
+        if (userLocation) {
+            console.log('現在地を取得しました:', userLocation);
+            
+            // 地図の中心を現在地に設定
+            map.setView([userLocation.latitude, userLocation.longitude], 12);
+            
+            // 現在地マーカーを追加
+            addCurrentLocationMarker(userLocation);
+            
+            showInfoMessage('現在地を中心に地図を表示しています');
+        } else {
+            console.log('現在地取得に失敗、デフォルト位置を使用');
+            showInfoMessage('デフォルト位置（東京駅周辺）を表示しています');
+        }
+        
+    } catch (error) {
+        console.error('位置情報付き地図初期化エラー:', error);
+        // エラーが発生してもアプリは継続動作
+        initializeMap();
+        showInfoMessage('デフォルト位置を表示しています');
+    }
+}
+
+// 基本的な地図初期化
 function initializeMap() {
     // 地図設定を使用
     const center = MAP_CONFIG.DEFAULT_CENTER;
@@ -228,29 +260,123 @@ function showMessage(message, type = 'info') {
     }, UI_CONFIG.ERROR_DISPLAY_TIME);
 }
 
-// 現在地を取得して地図の中心に設定
-function getCurrentLocation() {
-    if (navigator.geolocation) {
+// ユーザーの現在地を取得（Promise版）
+function getUserLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            console.warn('このブラウザでは位置情報がサポートされていません');
+            resolve(null);
+            return;
+        }
+
+        // 位置情報取得のオプション
+        const options = {
+            enableHighAccuracy: true,  // 高精度を要求
+            timeout: 10000,           // 10秒でタイムアウト
+            maximumAge: 300000        // 5分間はキャッシュを使用
+        };
+
         navigator.geolocation.getCurrentPosition(
             function(position) {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                
-                map.setView([lat, lng], 13);
-                
-                // 現在地マーカーを追加
-                L.marker([lat, lng])
-                    .addTo(map)
-                    .bindPopup('現在地')
-                    .openPopup();
+                const location = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                    timestamp: position.timestamp
+                };
+                console.log('位置情報取得成功:', location);
+                resolve(location);
             },
             function(error) {
-                console.error('位置情報の取得に失敗しました:', error);
-                showErrorMessage('位置情報の取得に失敗しました');
-            }
+                console.warn('位置情報の取得に失敗:', error);
+                
+                // エラーの種類に応じてメッセージを変更
+                let errorMessage = '';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage = '位置情報の使用が拒否されました';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = '位置情報を取得できませんでした';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage = '位置情報の取得がタイムアウトしました';
+                        break;
+                    default:
+                        errorMessage = '位置情報の取得中にエラーが発生しました';
+                        break;
+                }
+                
+                console.warn(errorMessage, error);
+                resolve(null); // エラーでもnullを返してアプリを継続
+            },
+            options
         );
-    } else {
-        showErrorMessage('このブラウザでは位置情報がサポートされていません');
+    });
+}
+
+// 現在地マーカーを追加
+function addCurrentLocationMarker(location) {
+    if (!location) return;
+
+    // 現在地用のカスタムアイコンを作成
+    const currentLocationIcon = L.divIcon({
+        className: 'current-location-marker',
+        html: `
+            <div class="current-location-icon">
+                <div class="location-dot"></div>
+                <div class="location-pulse"></div>
+            </div>
+        `,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
+
+    // 現在地マーカーを追加
+    const currentLocationMarker = L.marker(
+        [location.latitude, location.longitude], 
+        { icon: currentLocationIcon }
+    ).addTo(map);
+
+    // ポップアップを追加
+    const popupContent = `
+        <div class="current-location-popup">
+            <h4>📍 現在地</h4>
+            <p>緯度: ${location.latitude.toFixed(6)}</p>
+            <p>経度: ${location.longitude.toFixed(6)}</p>
+            <p>精度: 約${Math.round(location.accuracy)}m</p>
+        </div>
+    `;
+    
+    currentLocationMarker.bindPopup(popupContent);
+
+    // 現在地マーカーをクリックできるようにする
+    currentLocationMarker.on('click', function() {
+        map.setView([location.latitude, location.longitude], 15);
+    });
+
+    console.log('現在地マーカーを追加しました');
+}
+
+// 現在地へ移動（手動実行用）
+async function goToCurrentLocation() {
+    try {
+        showLoadingState('現在地を取得中...');
+        
+        const location = await getUserLocation();
+        
+        if (location) {
+            map.setView([location.latitude, location.longitude], 15);
+            showInfoMessage('現在地に移動しました');
+        } else {
+            showErrorMessage('現在地を取得できませんでした');
+        }
+        
+        hideLoadingState();
+    } catch (error) {
+        console.error('現在地取得エラー:', error);
+        showErrorMessage('現在地の取得に失敗しました');
+        hideLoadingState();
     }
 }
 
