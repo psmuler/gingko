@@ -1,102 +1,180 @@
 /**
- * 俳句鑑賞＆記録アプリ - Google Apps Script API (修正版)
- * メインエントリーポイント - CORS問題解決版
+ * 俳句鑑賞＆記録アプリ - Google Apps Script API
+ * リファクタリング版 - パフォーマンス最適化と可読性向上
  */
 
-// スプレッドシートID（実際のIDに置き換えてください）
+// =============================================================================
+// 設定定数
+// =============================================================================
+
 const SPREADSHEET_ID = '1BtAMhFaMeGsklqHeg7fnw5PvPRtyaR-9bOyFe3-7Rc0';
 
-// シート名の定数
 const SHEETS = {
   HAIKUS: 'haikus',
   POETS: 'poets'
 };
 
+const RESPONSE_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Content-Type': 'application/json'
+};
+
+const HTTP_STATUS = {
+  OK: 200,
+  INTERNAL_SERVER_ERROR: 500
+};
+
+// =============================================================================
+// メインエントリーポイント
+// =============================================================================
+
 /**
- * Webアプリのメインハンドラー
- * HTTPリクエストを受け取り、適切なAPIエンドポイントにルーティング
+ * GETリクエストハンドラー
  */
 function doGet(e) {
-  // CORS対応のヘッダーを設定
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json'
-  };
-
-  try {
-    const path = e.parameter.path || '';
-    const method = 'GET';
-    
-    console.log('受信リクエスト:', method, path, e.parameter);
-    
-    // ルーティング
-    const response = routeRequest(method, path, e.parameter);
-    
-    const jsonOutput = ContentService.createTextOutput(JSON.stringify(response));
-    jsonOutput.setMimeType(ContentService.MimeType.JSON);
-    
-    // CORSヘッダーを明示的に設定
-    Object.keys(headers).forEach(key => {
-      jsonOutput.setHeaders = jsonOutput.setHeaders || {};
-    });
-    
-    return jsonOutput;
-  } catch (error) {
-    console.error('API Error:', error);
-    const errorResponse = {
-      error: true,
-      status: 500,
-      message: 'Internal Server Error',
-      details: error.message,
-      stack: error.stack
-    };
-    
-    const jsonOutput = ContentService.createTextOutput(JSON.stringify(errorResponse));
-    jsonOutput.setMimeType(ContentService.MimeType.JSON);
-    return jsonOutput;
-  }
+  return handleRequest('GET', e);
 }
 
 /**
  * POSTリクエストハンドラー
  */
 function doPost(e) {
+  return handleRequest('POST', e);
+}
+
+/**
+ * 統合リクエストハンドラー
+ */
+function handleRequest(method, e) {
   try {
-    const path = e.parameter.path || '';
-    const method = 'POST';
+    const requestData = parseRequestData(method, e);
+    const response = routeRequest(method, requestData.path, requestData.params, requestData.postData);
     
-    console.log('POST Request:', method, path, e.parameter);
-    console.log('POST Data:', e.postData);
-    
-    // POSTデータを解析（x-www-form-urlencoded形式）
-    let postData = {};
-    if (e.parameter) {
-      // URLパラメータからデータを取得
-      Object.keys(e.parameter).forEach(key => {
-        if (key !== 'path') {
-          postData[key] = Array.isArray(e.parameter[key]) ? e.parameter[key][0] : e.parameter[key];
-        }
-      });
-    }
-    
-    const response = routeRequest(method, path, e.parameter, postData);
-    
-    // CORS対応でプレーンテキストを返す（参考サイトの方法）
-    return ContentService.createTextOutput(JSON.stringify(response));
+    return createSuccessResponse(response);
   } catch (error) {
-    console.error('POST API Error:', error);
-    const errorResponse = {
-      error: true,
-      status: 500,
-      message: 'Internal Server Error',
-      details: error.message,
-      stack: error.stack
-    };
-    
-    return ContentService.createTextOutput(JSON.stringify(errorResponse));
+    console.error('❌ API Error:', error);
+    return createErrorResponse(error);
   }
+}
+
+/**
+ * リクエストデータの解析
+ */
+function parseRequestData(method, e) {
+  const path = e.parameter.path || '';
+  const params = e.parameter || {};
+  
+  let postData = null;
+  if (method === 'POST' && e.parameter) {
+    postData = {};
+    Object.keys(e.parameter).forEach(key => {
+      if (key !== 'path') {
+        postData[key] = Array.isArray(e.parameter[key]) ? e.parameter[key][0] : e.parameter[key];
+      }
+    });
+  }
+  
+  console.log(`📨 ${method} Request:`, path, params);
+  if (postData) console.log('📤 POST Data:', postData);
+  
+  return { path, params, postData };
+}
+
+/**
+ * 成功レスポンスの作成
+ */
+function createSuccessResponse(response) {
+  const jsonOutput = ContentService.createTextOutput(JSON.stringify(response));
+  jsonOutput.setMimeType(ContentService.MimeType.JSON);
+  return jsonOutput;
+}
+
+/**
+ * エラーレスポンスの作成
+ */
+function createErrorResponse(error) {
+  const errorResponse = {
+    error: true,
+    status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    message: 'Internal Server Error',
+    details: error.message,
+    timestamp: new Date().toISOString()
+  };
+  
+  return ContentService.createTextOutput(JSON.stringify(errorResponse));
+}
+
+// =============================================================================
+// スプレッドシート操作ユーティリティ
+// =============================================================================
+
+/**
+ * スプレッドシートインスタンスのキャッシュ
+ */
+let _spreadsheetCache = null;
+
+/**
+ * スプレッドシート取得（キャッシュ付き）
+ */
+function getSpreadsheet() {
+  if (!_spreadsheetCache) {
+    _spreadsheetCache = SpreadsheetApp.openById(SPREADSHEET_ID);
+    console.log('📊 スプレッドシート接続済み:', _spreadsheetCache.getName());
+  }
+  return _spreadsheetCache;
+}
+
+/**
+ * シート取得（キャッシュ付き）
+ */
+function getSheet(sheetName) {
+  const spreadsheet = getSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(sheetName);
+  
+  if (!sheet) {
+    throw new Error(`シート '${sheetName}' が見つかりません`);
+  }
+  
+  return sheet;
+}
+
+/**
+ * 全データ取得（パフォーマンス最適化版）
+ */
+function getAllData(sheetName) {
+  const sheet = getSheet(sheetName);
+  const range = sheet.getDataRange();
+  
+  if (range.getNumRows() <= 1) {
+    return []; // ヘッダーのみまたは空の場合
+  }
+  
+  return range.getValues();
+}
+
+/**
+ * 列マップ取得（キャッシュ付き）
+ */
+const _columnMapCache = new Map();
+
+function getColumnMap(sheet) {
+  const sheetName = sheet.getName();
+  
+  if (!_columnMapCache.has(sheetName)) {
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const columnMap = {};
+    
+    headers.forEach((header, index) => {
+      columnMap[header] = index + 1;
+    });
+    
+    _columnMapCache.set(sheetName, columnMap);
+    console.log(`📋 列マップ作成: ${sheetName}`, Object.keys(columnMap));
+  }
+  
+  return _columnMapCache.get(sheetName);
 }
 
 /**
@@ -265,22 +343,45 @@ function buildRowFromColumnMap(columnMap, dataObject) {
   return row;
 }
 
+// =============================================================================
+// 詠み人管理（最適化版）
+// =============================================================================
+
 /**
- * 詠み人を取得または新規作成
+ * 詠み人を取得または新規作成（最適化版）
  */
-function getOrCreatePoet(spreadsheet, poetName) {
-  const poetSheet = spreadsheet.getSheetByName(SHEETS.POETS);
+function getOrCreatePoet(poetName) {
+  const poetSheet = getSheet(SHEETS.POETS);
+  const existingPoetId = findExistingPoet(poetSheet, poetName);
+  
+  return existingPoetId !== null ? existingPoetId : createNewPoet(poetSheet, poetName);
+}
+
+/**
+ * 既存詠み人の検索
+ */
+function findExistingPoet(poetSheet, poetName) {
+  const data = getAllData(SHEETS.POETS);
   const columnMap = getColumnMap(poetSheet);
-  const poetData = poetSheet.getDataRange().getValues();
+  const nameColumnIndex = columnMap['name'] - 1;
+  const idColumnIndex = columnMap['id'] - 1;
   
   // ヘッダー行をスキップして検索
-  for (let i = 1; i < poetData.length; i++) {
-    if (poetData[i][columnMap['name'] - 1] === poetName) {
-      return poetData[i][columnMap['id'] - 1];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][nameColumnIndex] === poetName) {
+      console.log(`🔍 既存詠み人発見: ${poetName} (ID: ${data[i][idColumnIndex]})`);
+      return data[i][idColumnIndex];
     }
   }
   
-  // 詠み人が見つからない場合は新規作成
+  return null;
+}
+
+/**
+ * 新規詠み人作成
+ */
+function createNewPoet(poetSheet, poetName) {
+  const columnMap = getColumnMap(poetSheet);
   const newPoetId = generateNewPoetId(poetSheet);
   const now = new Date();
   
@@ -296,10 +397,10 @@ function getOrCreatePoet(spreadsheet, poetName) {
     'updated_at': now
   };
   
-  const poetRow = buildRowFromColumnMap(columnMap, poetRowData);
-  poetSheet.appendRow(poetRow);
-  console.log(`新しい詠み人を作成しました: ${poetName} (ID: ${newPoetId})`);
+  const row = buildRowFromColumnMap(columnMap, poetRowData);
+  poetSheet.appendRow(row);
   
+  console.log(`✨ 新規詠み人作成: ${poetName} (ID: ${newPoetId})`);
   return newPoetId;
 }
 
@@ -349,90 +450,80 @@ function generateNewPoetId(poetSheet) {
   return maxId + 1;
 }
 
+// =============================================================================
+// データ検証ユーティリティ
+// =============================================================================
+
 /**
- * 俳句新規作成
+ * 俳句データの検証
+ */
+function validateHaikuData(postData) {
+  const requiredFields = ['haiku_text', 'poet_name', 'latitude', 'longitude', 'location_type'];
+  
+  // 必須フィールドチェック
+  for (const field of requiredFields) {
+    if (!postData[field] || postData[field].toString().trim() === '') {
+      throw new Error(`必須フィールドが未入力です: ${field}`);
+    }
+  }
+  
+  // 数値データの検証
+  const latitude = parseFloat(postData.latitude);
+  const longitude = parseFloat(postData.longitude);
+  
+  if (isNaN(latitude) || isNaN(longitude)) {
+    throw new Error('緯度・経度は数値で入力してください');
+  }
+  
+  if (latitude < -90 || latitude > 90) {
+    throw new Error('緯度は-90から90の間で入力してください');
+  }
+  
+  if (longitude < -180 || longitude > 180) {
+    throw new Error('経度は-180から180の間で入力してください');
+  }
+  
+  // 場所種別の検証
+  const validLocationTypes = ['句碑', '紀行文', 'ゆかりの地'];
+  if (!validLocationTypes.includes(postData.location_type)) {
+    throw new Error('無効な場所種別です');
+  }
+  
+  return { latitude, longitude };
+}
+
+// =============================================================================
+// 俳句作成処理
+// =============================================================================
+
+/**
+ * 俳句新規作成（最適化版）
  */
 function createHaiku(postData) {
-  console.log('Creating haiku:', postData);
+  console.log('🎋 俳句作成開始:', postData);
   
   try {
-    // 入力データの検証
-    const requiredFields = ['haiku_text', 'poet_name', 'latitude', 'longitude', 'location_type'];
-    for (const field of requiredFields) {
-      if (!postData[field] || postData[field].toString().trim() === '') {
-        throw new Error(`必須フィールドが未入力です: ${field}`);
-      }
-    }
-    
-    // 数値データの検証
-    const latitude = parseFloat(postData.latitude);
-    const longitude = parseFloat(postData.longitude);
-    
-    if (isNaN(latitude) || isNaN(longitude)) {
-      throw new Error('緯度・経度は数値で入力してください');
-    }
-    
-    if (latitude < -90 || latitude > 90) {
-      throw new Error('緯度は-90から90の間で入力してください');
-    }
-    
-    if (longitude < -180 || longitude > 180) {
-      throw new Error('経度は-180から180の間で入力してください');
-    }
-    
-    // スプレッドシートに接続
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    // データ検証
+    const { latitude, longitude } = validateHaikuData(postData);
     
     // 詠み人の確認・作成
-    const poetId = getOrCreatePoet(ss, postData.poet_name);
+    const poetId = getOrCreatePoet(postData.poet_name);
     
-    // 俳句シートに新しいIDを生成して追加
-    const haikuSheet = ss.getSheetByName(SHEETS.HAIKUS);
-    const haikuColumnMap = getColumnMap(haikuSheet);
-    const newId = generateNewHaikuId(haikuSheet);
+    // 俳句データの挿入
+    const newId = insertHaikuData(postData, poetId, latitude, longitude);
     
-    // 現在の日時
-    const now = new Date();
-    
-    // 俳句データの準備（列名ベース）
-    const haikuRowData = {
-      'id': newId,
-      'haiku_text': postData.haiku_text.trim(),
-      'poet_id': poetId,
-      'latitude': latitude,
-      'longitude': longitude,
-      'location_type': postData.location_type,
-      'date_composed': postData.date_composed || '',
-      'location_name': postData.location_name || '',
-      'description': postData.description || '',
-      'created_at': now,
-      'updated_at': now
-    };
-    
-    const haikuRow = buildRowFromColumnMap(haikuColumnMap, haikuRowData);
-    
-    // スプレッドシートに追加
-    haikuSheet.appendRow(haikuRow);
-    
-    console.log(`俳句が追加されました: ID=${newId}`);
-    
-    return {
+    const result = {
       success: true,
       message: '俳句を投稿しました',
-      data: {
-        id: newId,
-        haiku_text: postData.haiku_text.trim(),
-        poet_name: postData.poet_name,
-        location_name: postData.location_name || '',
-        location_type: postData.location_type,
-        latitude: latitude,
-        longitude: longitude
-      },
-      timestamp: now.toISOString()
+      data: buildHaikuResponse(newId, postData, latitude, longitude),
+      timestamp: new Date().toISOString()
     };
     
+    console.log('✅ 俳句作成完了:', `ID=${newId}`);
+    return result;
+    
   } catch (error) {
-    console.error('Create haiku error:', error);
+    console.error('❌ 俳句作成エラー:', error);
     return {
       success: false,
       error: true,
@@ -440,4 +531,48 @@ function createHaiku(postData) {
       timestamp: new Date().toISOString()
     };
   }
+}
+
+/**
+ * 俳句データをスプレッドシートに挿入
+ */
+function insertHaikuData(postData, poetId, latitude, longitude) {
+  const haikuSheet = getSheet(SHEETS.HAIKUS);
+  const columnMap = getColumnMap(haikuSheet);
+  const newId = generateNewHaikuId(haikuSheet);
+  const now = new Date();
+  
+  const haikuRowData = {
+    'id': newId,
+    'haiku_text': postData.haiku_text.trim(),
+    'poet_id': poetId,
+    'latitude': latitude,
+    'longitude': longitude,
+    'location_type': postData.location_type,
+    'date_composed': postData.date_composed || '',
+    'location_name': postData.location_name || '',
+    'description': postData.description || '',
+    'created_at': now,
+    'updated_at': now
+  };
+  
+  const row = buildRowFromColumnMap(columnMap, haikuRowData);
+  haikuSheet.appendRow(row);
+  
+  return newId;
+}
+
+/**
+ * 俳句レスポンスデータの構築
+ */
+function buildHaikuResponse(id, postData, latitude, longitude) {
+  return {
+    id: id,
+    haiku_text: postData.haiku_text.trim(),
+    poet_name: postData.poet_name,
+    location_name: postData.location_name || '',
+    location_type: postData.location_type,
+    latitude: latitude,
+    longitude: longitude
+  };
 }

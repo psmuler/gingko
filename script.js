@@ -1,62 +1,123 @@
-// 俳句鑑賞＆記録アプリ メインスクリプト
+/**
+ * 俳句鑑賞＆記録アプリ メインスクリプト
+ * リファクタリング版 - 責任分離と可読性向上
+ */
+
+// =============================================================================
+// グローバル変数と定数
+// =============================================================================
 
 let map;
 let markersLayer;
+let currentLocationMarker;
 let isLoading = false;
+let isSubmittingHaiku = false;
 
-// アプリ初期化
-document.addEventListener('DOMContentLoaded', function() {
-    initializeApp();
-});
+const APP_STATE = {
+    INITIALIZING: 'initializing',
+    READY: 'ready',
+    ERROR: 'error'
+};
 
+// =============================================================================
 // アプリケーション初期化
+// =============================================================================
+
+document.addEventListener('DOMContentLoaded', initializeApp);
+
+/**
+ * アプリケーション初期化メイン関数
+ */
 async function initializeApp() {
     try {
-        showLoadingState('地図を初期化中...');
-        await initializeMapWithLocation();
-        
-        showLoadingState('俳句データを読み込み中...');
-        await loadHaikuData();
-        
-        hideLoadingState();
-        console.log('アプリケーションの初期化が完了しました');
+        await executeInitializationSequence();
+        console.log('✅ アプリケーションの初期化が完了しました');
     } catch (error) {
-        console.error('アプリケーションの初期化に失敗:', error);
-        showErrorMessage('データの読み込みに失敗しました: ' + error.message);
-        hideLoadingState();
+        handleInitializationError(error);
     }
 }
 
-// 位置情報付き地図初期化
+/**
+ * 初期化シーケンスの実行
+ */
+async function executeInitializationSequence() {
+    const steps = [
+        { message: '地図を初期化中...', action: initializeMapWithLocation },
+        { message: '俳句データを読み込み中...', action: loadHaikuData }
+    ];
+
+    for (const step of steps) {
+        showLoadingState(step.message);
+        await step.action();
+    }
+    
+    hideLoadingState();
+}
+
+/**
+ * 初期化エラーの処理
+ */
+function handleInitializationError(error) {
+    console.error('❌ アプリケーションの初期化に失敗:', error);
+    showErrorMessage(`初期化に失敗しました: ${error.message}`);
+    hideLoadingState();
+}
+
+// =============================================================================
+// 地図初期化と管理
+// =============================================================================
+
+/**
+ * 位置情報付き地図初期化
+ */
 async function initializeMapWithLocation() {
     try {
-        // まず基本的な地図を初期化
         initializeMap();
-        
-        // 現在地を取得して地図の中心を設定
-        const userLocation = await getUserLocation();
-        
-        if (userLocation) {
-            console.log('現在地を取得しました:', userLocation);
-            
-            // 地図の中心を現在地に設定
-            map.setView([userLocation.latitude, userLocation.longitude], 12);
-            
-            // 現在地マーカーを追加
-            addCurrentLocationMarker(userLocation);
-            
-            showInfoMessage('現在地を中心に地図を表示しています');
-        } else {
-            console.log('現在地取得に失敗、デフォルト位置を使用');
-            showInfoMessage('デフォルト位置（東京駅周辺）を表示しています');
-        }
-        
+        await setupLocationBasedView();
     } catch (error) {
-        console.error('位置情報付き地図初期化エラー:', error);
-        // エラーが発生してもアプリは継続動作
-        initializeMap();
-        showInfoMessage('デフォルト位置を表示しています');
+        handleMapInitializationError(error);
     }
+}
+
+/**
+ * 位置情報ベースの地図ビュー設定
+ */
+async function setupLocationBasedView() {
+    const userLocation = await getUserLocation();
+    
+    if (userLocation) {
+        setupMapWithUserLocation(userLocation);
+    } else {
+        showDefaultLocationMessage();
+    }
+}
+
+/**
+ * ユーザー位置情報での地図設定
+ */
+function setupMapWithUserLocation(userLocation) {
+    console.log('📍 現在地を取得しました:', userLocation);
+    
+    map.setView([userLocation.latitude, userLocation.longitude], 12);
+    addCurrentLocationMarker(userLocation);
+    showInfoMessage('現在地を中心に地図を表示しています');
+}
+
+/**
+ * デフォルト位置メッセージ表示
+ */
+function showDefaultLocationMessage() {
+    console.log('📍 現在地取得に失敗、デフォルト位置を使用');
+    showInfoMessage('デフォルト位置（東京駅周辺）を表示しています');
+}
+
+/**
+ * 地図初期化エラー処理
+ */
+function handleMapInitializationError(error) {
+    console.error('❌ 地図初期化エラー:', error);
+    initializeMap(); // フォールバック
+    showInfoMessage('デフォルト位置を表示しています');
 }
 
 // 基本的な地図初期化
@@ -390,130 +451,217 @@ async function refreshData() {
     }
 }
 
-// ========== 俳句投稿フォーム関連 ==========
+// =============================================================================
+// 俳句投稿フォーム管理
+// =============================================================================
 
-// 俳句投稿フォームの表示/非表示を切り替え
+/**
+ * 俳句投稿フォームの表示/非表示切り替え
+ */
 function toggleHaikuForm() {
-    const formContainer = document.getElementById('haiku-form-container');
-    if (formContainer.style.display === 'none') {
-        openHaikuForm();
-    } else {
-        closeHaikuForm();
-    }
+    const formContainer = getFormContainer();
+    const isVisible = formContainer.style.display !== 'none';
+    
+    isVisible ? closeHaikuForm() : openHaikuForm();
 }
 
-// 俳句投稿フォームを開く
+/**
+ * 俳句投稿フォームを開く
+ */
 function openHaikuForm() {
-    const formContainer = document.getElementById('haiku-form-container');
+    const formContainer = getFormContainer();
+    const form = getHaikuForm();
+    
     formContainer.style.display = 'flex';
+    form.reset();
     
-    // フォームをリセット
-    document.getElementById('haiku-form').reset();
-    
-    // 現在地を取得してフォームに設定（バックグラウンドで実行）
+    // 現在地を非同期で取得
     getCurrentLocationForForm();
 }
 
-// 俳句投稿フォームを閉じる
+/**
+ * 俳句投稿フォームを閉じる
+ */
 function closeHaikuForm() {
-    const formContainer = document.getElementById('haiku-form-container');
+    const formContainer = getFormContainer();
     formContainer.style.display = 'none';
 }
 
-// フォーム用に現在地を取得
+/**
+ * フォーム用の現在地取得
+ */
 async function getCurrentLocationForForm() {
     try {
         const location = await getUserLocation();
         
         if (location) {
-            document.getElementById('latitude').value = location.latitude.toFixed(6);
-            document.getElementById('longitude').value = location.longitude.toFixed(6);
+            setLocationInputs(location);
             showInfoMessage('現在地を取得してフォームに設定しました');
         } else {
-            showErrorMessage('現在地を取得できませんでした。手動で座標を入力してください');
+            showLocationInputError();
         }
     } catch (error) {
-        console.error('フォーム用現在地取得エラー:', error);
+        console.error('❌ フォーム用現在地取得エラー:', error);
         showErrorMessage('現在地の取得に失敗しました');
     }
 }
 
-// 投稿処理中のフラグ
-let isSubmittingHaiku = false;
+/**
+ * 位置情報をフォーム入力に設定
+ */
+function setLocationInputs(location) {
+    const latInput = document.getElementById('latitude');
+    const lngInput = document.getElementById('longitude');
+    
+    if (latInput && lngInput) {
+        latInput.value = location.latitude.toFixed(6);
+        lngInput.value = location.longitude.toFixed(6);
+    }
+}
 
-// 俳句投稿フォームの送信処理
+/**
+ * 位置情報入力エラー表示
+ */
+function showLocationInputError() {
+    showErrorMessage('現在地を取得できませんでした。手動で座標を入力してください');
+}
+
+// =============================================================================
+// 俳句投稿処理
+// =============================================================================
+
+/**
+ * 俳句投稿フォームの送信処理
+ */
 async function submitHaiku(event) {
     event.preventDefault();
     
-    // 重複送信防止
     if (isSubmittingHaiku) {
-        console.log('投稿処理中のため、重複送信をブロックしました');
+        console.log('⚠️ 投稿処理中のため、重複送信をブロックしました');
         return;
     }
     
     try {
-        isSubmittingHaiku = true;
-        
-        // フォームデータを取得
-        const form = event.target;
-        const formData = new FormData(form);
-        
-        // 送信ボタンを無効化
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const allButtons = form.querySelectorAll('button');
-        
+        await executeHaikuSubmission(event);
+    } catch (error) {
+        handleSubmissionError(error);
+    } finally {
+        cleanupSubmissionState();
+    }
+}
+
+/**
+ * 俳句投稿の実行
+ */
+async function executeHaikuSubmission(event) {
+    isSubmittingHaiku = true;
+    
+    const form = event.target;
+    const formData = prepareFormData(form);
+    
+    disableFormButtons(form);
+    showLoadingState('俳句を投稿中...');
+    
+    console.log('📤 送信データ:', formData);
+    
+    const response = await apiClient.createHaiku(formData);
+    
+    if (response.success) {
+        handleSubmissionSuccess(response);
+    } else {
+        throw new Error(response.message || '投稿に失敗しました');
+    }
+}
+
+/**
+ * フォームデータの準備
+ */
+function prepareFormData(form) {
+    const formData = new FormData(form);
+    const postData = {};
+    
+    for (let [key, value] of formData.entries()) {
+        postData[key] = value;
+    }
+    
+    return postData;
+}
+
+/**
+ * フォームボタンの無効化
+ */
+function disableFormButtons(form) {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const allButtons = form.querySelectorAll('button');
+    
+    if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.textContent = '送信中...';
-        
-        // 全てのボタンを無効化
-        allButtons.forEach(btn => btn.disabled = true);
-        
-        showLoadingState('俳句を投稿中...');
-        
-        // FormDataをオブジェクトに変換
-        const postData = {};
-        for (let [key, value] of formData.entries()) {
-            postData[key] = value;
-        }
-        
-        console.log('送信データ:', postData);
-        
-        // 実際の俳句投稿APIを呼び出し
-        const response = await apiClient.createHaiku(postData);
-        
-        if (response.success) {
-            showInfoMessage('俳句の投稿が完了しました');
-            console.log('投稿成功:', response);
-            
-            // フォームを閉じる
-            closeHaikuForm();
-            
-            // データを再読み込み
-            await refreshData();
-        } else {
-            throw new Error(response.message || '投稿に失敗しました');
-        }
-        
-    } catch (error) {
-        console.error('俳句投稿エラー:', error);
-        showErrorMessage('俳句の投稿に失敗しました: ' + error.message);
-    } finally {
-        isSubmittingHaiku = false;
-        hideLoadingState();
-        
-        // 送信ボタンを元に戻す
-        const form = document.getElementById('haiku-form');
-        if (form) {
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const allButtons = form.querySelectorAll('button');
-            
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = '投稿';
-            }
-            
-            // 全てのボタンを有効化
-            allButtons.forEach(btn => btn.disabled = false);
-        }
     }
+    
+    allButtons.forEach(btn => btn.disabled = true);
+}
+
+/**
+ * 投稿成功時の処理
+ */
+async function handleSubmissionSuccess(response) {
+    showInfoMessage('俳句の投稿が完了しました');
+    console.log('✅ 投稿成功:', response);
+    
+    closeHaikuForm();
+    await refreshData();
+}
+
+/**
+ * 投稿エラー処理
+ */
+function handleSubmissionError(error) {
+    console.error('❌ 俳句投稿エラー:', error);
+    showErrorMessage(`俳句の投稿に失敗しました: ${error.message}`);
+}
+
+/**
+ * 投稿状態のクリーンアップ
+ */
+function cleanupSubmissionState() {
+    isSubmittingHaiku = false;
+    hideLoadingState();
+    enableFormButtons();
+}
+
+/**
+ * フォームボタンの有効化
+ */
+function enableFormButtons() {
+    const form = getHaikuForm();
+    if (!form) return;
+    
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const allButtons = form.querySelectorAll('button');
+    
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '投稿';
+    }
+    
+    allButtons.forEach(btn => btn.disabled = false);
+}
+
+// =============================================================================
+// DOM要素取得ヘルパー
+// =============================================================================
+
+/**
+ * フォームコンテナ要素取得
+ */
+function getFormContainer() {
+    return document.getElementById('haiku-form-container');
+}
+
+/**
+ * 俳句フォーム要素取得
+ */
+function getHaikuForm() {
+    return document.getElementById('haiku-form');
 }

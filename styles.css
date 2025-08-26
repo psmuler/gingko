@@ -1,5 +1,60 @@
-/* 俳句鑑賞＆記録アプリ スタイル */
+/**
+ * 俳句鑑賞＆記録アプリ スタイルシート
+ * リファクタリング版 - 整理・最適化・保守性向上
+ */
 
+/* =============================================================================
+   CSS変数とベーススタイル
+   ============================================================================= */
+
+:root {
+    /* カラーパレット */
+    --primary-color: #2c5aa0;
+    --primary-hover: #1e4080;
+    --secondary-color: #f8f9fa;
+    --text-color: #333;
+    --text-light: #666;
+    --background-light: #f0f0f0;
+    --border-color: #ddd;
+    --success-color: #155724;
+    --success-bg: #d4edda;
+    --success-border: #c3e6cb;
+    --error-color: #721c24;
+    --error-bg: #f8d7da;
+    --error-border: #f5c6cb;
+    
+    /* マーカー色 */
+    --marker-kuhi: #e74c3c;     /* 句碑 - 赤 */
+    --marker-kikou: #3498db;    /* 紀行文 - 青 */
+    --marker-yukari: #2ecc71;   /* ゆかりの地 - 緑 */
+    --marker-default: #95a5a6;  /* デフォルト - グレー */
+    
+    /* スペーシング */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 20px;
+    --spacing-xl: 30px;
+    
+    /* フォント */
+    --font-family: 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+    --font-size-sm: 0.8rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.1rem;
+    --font-size-xl: 1.2rem;
+    --font-size-xxl: 1.5rem;
+    
+    /* シャドウ */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+    --shadow-md: 0 2px 4px rgba(0,0,0,0.15);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.15);
+    
+    /* トランジション */
+    --transition-fast: 0.2s ease;
+    --transition-base: 0.3s ease;
+}
+
+/* リセットとベース */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -7,10 +62,14 @@
 }
 
 body {
-    font-family: 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+    font-family: var(--font-family);
     line-height: 1.6;
-    color: #333;
+    color: var(--text-color);
 }
+
+/* =============================================================================
+   レイアウトコンポーネント
+   ============================================================================= */
 
 #app {
     display: flex;
@@ -18,19 +77,21 @@ body {
     height: 100vh;
 }
 
+/* ヘッダー */
 header {
-    background-color: #2c5aa0;
+    background-color: var(--primary-color);
     color: white;
-    padding: 1rem;
+    padding: var(--spacing-lg);
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
 }
 
 header h1 {
-    font-size: 1.5rem;
+    font-size: var(--font-size-xxl);
     font-weight: 400;
 }
 
+/* メインコンテンツ */
 main {
     flex: 1;
     display: flex;
@@ -45,7 +106,7 @@ main {
 #map {
     width: 100%;
     height: 100%;
-    background-color: #f0f0f0;
+    background-color: var(--background-light);
 }
 
 /* レスポンシブ対応 */
@@ -391,26 +452,23 @@ main {
     box-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 
-/* フォームスタイル */
+/* =============================================================================
+   フォームスタイル
+   ============================================================================= */
+
 .form-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: var(--spacing-lg);
 }
 
 .form-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background-color: rgba(0, 0, 0, 0.5);
 }
 
@@ -418,31 +476,32 @@ main {
     position: relative;
     background-color: white;
     border-radius: 8px;
-    padding: 30px;
+    padding: var(--spacing-xl);
     max-width: 500px;
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-lg);
     z-index: 1;
 }
 
 .form-content h2 {
-    margin-bottom: 20px;
-    color: #2c5aa0;
+    margin-bottom: var(--spacing-lg);
+    color: var(--primary-color);
     text-align: center;
-    font-size: 1.4rem;
+    font-size: var(--font-size-xl);
 }
 
+/* フォーム要素 */
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-lg);
 }
 
 .form-group label {
     display: block;
     margin-bottom: 6px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-color);
 }
 
 .form-group input,
@@ -450,18 +509,18 @@ main {
 .form-group select {
     width: 100%;
     padding: 10px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    font-size: 1rem;
+    font-size: var(--font-size-base);
     font-family: inherit;
-    transition: border-color 0.3s;
+    transition: border-color var(--transition-base);
 }
 
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
     outline: none;
-    border-color: #2c5aa0;
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(44, 90, 160, 0.1);
 }
 
@@ -484,8 +543,9 @@ main {
     flex: 1;
 }
 
+/* フォームアクション */
 .form-actions {
-    margin-top: 30px;
+    margin-top: var(--spacing-xl);
     display: flex;
     gap: 10px;
     justify-content: flex-end;
@@ -493,21 +553,21 @@ main {
 
 .primary-btn,
 .secondary-btn {
-    padding: 10px 20px;
+    padding: 10px var(--spacing-lg);
     border: none;
     border-radius: 4px;
-    font-size: 1rem;
+    font-size: var(--font-size-base);
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all var(--transition-base);
 }
 
 .primary-btn {
-    background-color: #2c5aa0;
+    background-color: var(--primary-color);
     color: white;
 }
 
 .primary-btn:hover {
-    background-color: #1e4080;
+    background-color: var(--primary-hover);
 }
 
 .primary-btn:disabled {
@@ -516,9 +576,9 @@ main {
 }
 
 .secondary-btn {
-    background-color: #f8f9fa;
-    color: #666;
-    border: 1px solid #ddd;
+    background-color: var(--secondary-color);
+    color: var(--text-light);
+    border: 1px solid var(--border-color);
 }
 
 .secondary-btn:hover {
