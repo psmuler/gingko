@@ -229,16 +229,54 @@ function testPost(postData) {
 }
 
 /**
+ * スプレッドシートの列名から列インデックスを取得
+ */
+function getColumnIndexByName(sheet, columnName) {
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const columnIndex = headers.indexOf(columnName);
+  if (columnIndex === -1) {
+    throw new Error(`列 '${columnName}' が見つかりません`);
+  }
+  return columnIndex + 1; // 1ベースのインデックス
+}
+
+/**
+ * スプレッドシートの列名マップを取得
+ */
+function getColumnMap(sheet) {
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const columnMap = {};
+  headers.forEach((header, index) => {
+    columnMap[header] = index + 1; // 1ベースのインデックス
+  });
+  return columnMap;
+}
+
+/**
+ * 列名を使って行データを構築
+ */
+function buildRowFromColumnMap(columnMap, dataObject) {
+  const row = new Array(Object.keys(columnMap).length);
+  Object.keys(dataObject).forEach(key => {
+    if (columnMap[key]) {
+      row[columnMap[key] - 1] = dataObject[key]; // 0ベースに変換
+    }
+  });
+  return row;
+}
+
+/**
  * 詠み人を取得または新規作成
  */
 function getOrCreatePoet(spreadsheet, poetName) {
   const poetSheet = spreadsheet.getSheetByName(SHEETS.POETS);
+  const columnMap = getColumnMap(poetSheet);
   const poetData = poetSheet.getDataRange().getValues();
   
   // ヘッダー行をスキップして検索
   for (let i = 1; i < poetData.length; i++) {
-    if (poetData[i][1] === poetName) { // nameカラム（B列）
-      return poetData[i][0]; // idカラム（A列）
+    if (poetData[i][columnMap['name'] - 1] === poetName) {
+      return poetData[i][columnMap['id'] - 1];
     }
   }
   
@@ -246,18 +284,19 @@ function getOrCreatePoet(spreadsheet, poetName) {
   const newPoetId = generateNewPoetId(poetSheet);
   const now = new Date();
   
-  const poetRow = [
-    newPoetId,           // id
-    poetName,            // name
-    '',                  // name_kana
-    '',                  // birth_year
-    '',                  // death_year
-    '現代',               // period
-    '',                  // biography
-    now,                 // created_at
-    now                  // updated_at
-  ];
+  const poetRowData = {
+    'id': newPoetId,
+    'name': poetName,
+    'name_kana': '',
+    'birth_year': '',
+    'death_year': '',
+    'period': '現代',
+    'biography': '',
+    'created_at': now,
+    'updated_at': now
+  };
   
+  const poetRow = buildRowFromColumnMap(columnMap, poetRowData);
   poetSheet.appendRow(poetRow);
   console.log(`新しい詠み人を作成しました: ${poetName} (ID: ${newPoetId})`);
   
@@ -273,9 +312,12 @@ function generateNewHaikuId(haikuSheet) {
     return 1;
   }
   
+  const columnMap = getColumnMap(haikuSheet);
+  const idColumnIndex = columnMap['id'] - 1;
+  
   let maxId = 0;
   for (let i = 1; i < data.length; i++) {
-    const id = parseInt(data[i][0]);
+    const id = parseInt(data[i][idColumnIndex]);
     if (!isNaN(id) && id > maxId) {
       maxId = id;
     }
@@ -293,9 +335,12 @@ function generateNewPoetId(poetSheet) {
     return 1;
   }
   
+  const columnMap = getColumnMap(poetSheet);
+  const idColumnIndex = columnMap['id'] - 1;
+  
   let maxId = 0;
   for (let i = 1; i < data.length; i++) {
-    const id = parseInt(data[i][0]);
+    const id = parseInt(data[i][idColumnIndex]);
     if (!isNaN(id) && id > maxId) {
       maxId = id;
     }
@@ -343,25 +388,28 @@ function createHaiku(postData) {
     
     // 俳句シートに新しいIDを生成して追加
     const haikuSheet = ss.getSheetByName(SHEETS.HAIKUS);
+    const haikuColumnMap = getColumnMap(haikuSheet);
     const newId = generateNewHaikuId(haikuSheet);
     
     // 現在の日時
     const now = new Date();
     
-    // 俳句データの準備
-    const haikuRow = [
-      newId,                                          // id
-      postData.haiku_text.trim(),                     // haiku_text
-      poetId,                                         // poet_id
-      latitude,                                       // latitude
-      longitude,                                      // longitude
-      postData.location_type,                         // location_type
-      postData.date_composed || '',                   // date_composed
-      postData.location_name || '',                   // location_name
-      postData.description || '',                     // description
-      now,                                           // created_at
-      now                                            // updated_at
-    ];
+    // 俳句データの準備（列名ベース）
+    const haikuRowData = {
+      'id': newId,
+      'haiku_text': postData.haiku_text.trim(),
+      'poet_id': poetId,
+      'latitude': latitude,
+      'longitude': longitude,
+      'location_type': postData.location_type,
+      'date_composed': postData.date_composed || '',
+      'location_name': postData.location_name || '',
+      'description': postData.description || '',
+      'created_at': now,
+      'updated_at': now
+    };
+    
+    const haikuRow = buildRowFromColumnMap(haikuColumnMap, haikuRowData);
     
     // スプレッドシートに追加
     haikuSheet.appendRow(haikuRow);

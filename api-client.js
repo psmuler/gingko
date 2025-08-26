@@ -161,76 +161,78 @@ class HaikuAPIClient {
 
     /**
      * POSTリクエストを実行 (x-www-form-urlencoded形式)
+     * POSTは重複を避けるためリトライなし
      */
     async makePostRequest(endpoint, postData = {}) {
         const url = new URL(this.baseUrl);
         
         console.log('POST API Request:', endpoint, postData);
 
-        let lastError;
-        
-        // リトライ機能付きリクエスト
-        for (let attempt = 1; attempt <= this.retryCount; attempt++) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                console.log('POST Request timeout triggered');
+                controller.abort();
+            }, this.timeout);
 
-                // x-www-form-urlencoded形式でデータを構築
-                const formBody = new URLSearchParams();
-                formBody.append('path', endpoint);
-                
-                // POSTデータを追加
-                Object.keys(postData).forEach(key => {
-                    if (postData[key] !== null && postData[key] !== undefined) {
-                        formBody.append(key, encodeURI(postData[key]));
-                    }
-                });
-
-                const response = await fetch(url.toString(), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: formBody.toString(),
-                    signal: controller.signal
-                });
-
-                clearTimeout(timeoutId);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+            // x-www-form-urlencoded形式でデータを構築
+            const formBody = new URLSearchParams();
+            formBody.append('path', endpoint);
+            
+            // POSTデータを追加（encodeURIはURLSearchParamsが自動で行うため不要）
+            Object.keys(postData).forEach(key => {
+                if (postData[key] !== null && postData[key] !== undefined) {
+                    formBody.append(key, postData[key]);
                 }
+            });
 
-                const responseText = await response.text();
-                console.log('POST API Raw Response:', responseText);
-                
-                let data;
-                try {
-                    data = JSON.parse(responseText);
-                } catch (e) {
-                    // JSONパースに失敗した場合はテキストをそのまま返す
-                    data = { success: true, message: responseText };
-                }
-                
-                if (data.error) {
-                    throw new Error(data.message || 'API Error');
-                }
+            console.log('POST Request body:', formBody.toString());
 
-                console.log('POST API Response:', data);
-                return data;
+            const response = await fetch(url.toString(), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formBody.toString(),
+                signal: controller.signal
+            });
 
-            } catch (error) {
-                console.error(`POST API Request failed (attempt ${attempt}):`, error);
-                lastError = error;
-                
-                // 最後の試行でない場合は少し待機
-                if (attempt < this.retryCount) {
-                    await this.delay(1000 * attempt);
-                }
+            clearTimeout(timeoutId);
+
+            console.log('POST Response status:', response.status, response.statusText);
+
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
             }
-        }
 
-        throw lastError;
+            const responseText = await response.text();
+            console.log('POST API Raw Response:', responseText);
+            
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                console.warn('JSON Parse failed, treating as success:', e);
+                // JSONパースに失敗した場合はテキストをそのまま返す
+                data = { success: true, message: responseText };
+            }
+            
+            if (data.error) {
+                throw new Error(data.message || 'API Error');
+            }
+
+            console.log('POST API Response:', data);
+            return data;
+
+        } catch (error) {
+            console.error('POST API Request failed:', error);
+            
+            if (error.name === 'AbortError') {
+                throw new Error('リクエストがタイムアウトしました。時間をおいて再度お試しください。');
+            }
+            
+            throw error;
+        }
     }
 
     /**

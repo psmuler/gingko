@@ -438,19 +438,35 @@ async function getCurrentLocationForForm() {
     }
 }
 
+// 投稿処理中のフラグ
+let isSubmittingHaiku = false;
+
 // 俳句投稿フォームの送信処理
 async function submitHaiku(event) {
     event.preventDefault();
     
+    // 重複送信防止
+    if (isSubmittingHaiku) {
+        console.log('投稿処理中のため、重複送信をブロックしました');
+        return;
+    }
+    
     try {
+        isSubmittingHaiku = true;
+        
         // フォームデータを取得
         const form = event.target;
         const formData = new FormData(form);
         
         // 送信ボタンを無効化
         const submitBtn = form.querySelector('button[type="submit"]');
+        const allButtons = form.querySelectorAll('button');
+        
         submitBtn.disabled = true;
         submitBtn.textContent = '送信中...';
+        
+        // 全てのボタンを無効化
+        allButtons.forEach(btn => btn.disabled = true);
         
         showLoadingState('俳句を投稿中...');
         
@@ -482,12 +498,22 @@ async function submitHaiku(event) {
         console.error('俳句投稿エラー:', error);
         showErrorMessage('俳句の投稿に失敗しました: ' + error.message);
     } finally {
+        isSubmittingHaiku = false;
         hideLoadingState();
         
         // 送信ボタンを元に戻す
         const form = document.getElementById('haiku-form');
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.disabled = false;
-        submitBtn.textContent = '投稿';
+        if (form) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const allButtons = form.querySelectorAll('button');
+            
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '投稿';
+            }
+            
+            // 全てのボタンを有効化
+            allButtons.forEach(btn => btn.disabled = false);
+        }
     }
 }

@@ -4,7 +4,7 @@
 const API_CONFIG = {
     // Google Apps Script Web App URL
     // 実際のデプロイURLに置き換えてください
-    BASE_URL: 'https://script.google.com/macros/s/AKfycbzkmKas-UVHQL5MfEpxuhnY0AYzHl0ji4vMW2VaWRcZyrlNHstWB9xNcCELpnd4IW6bgg/exec',
+    BASE_URL: 'https://script.google.com/macros/s/AKfycbxL-lyScLH6R-xu89cInqoKiqDnexczmjIMMnQ_C5TPdHodF_zjY1VX2WXqBqoCc9mPjw/exec',
 
     // APIエンドポイント
     ENDPOINTS: {
@@ -16,8 +16,8 @@ const API_CONFIG = {
     },
 
     // リクエスト設定
-    TIMEOUT: 10000, // 10秒
-    RETRY_COUNT: 3
+    TIMEOUT: 30000, // 30秒（POST処理に時間がかかるため）
+    RETRY_COUNT: 1  // POSTは重複を防ぐため1回のみ
 };
 
 // 地図設定
