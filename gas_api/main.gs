@@ -67,29 +67,35 @@ function doPost(e) {
     const path = e.parameter.path || '';
     const method = 'POST';
     
-    // POSTデータを解析
+    console.log('POST Request:', method, path, e.parameter);
+    console.log('POST Data:', e.postData);
+    
+    // POSTデータを解析（x-www-form-urlencoded形式）
     let postData = {};
-    if (e.postData && e.postData.contents) {
-      postData = JSON.parse(e.postData.contents);
+    if (e.parameter) {
+      // URLパラメータからデータを取得
+      Object.keys(e.parameter).forEach(key => {
+        if (key !== 'path') {
+          postData[key] = Array.isArray(e.parameter[key]) ? e.parameter[key][0] : e.parameter[key];
+        }
+      });
     }
     
     const response = routeRequest(method, path, e.parameter, postData);
     
-    const jsonOutput = ContentService.createTextOutput(JSON.stringify(response));
-    jsonOutput.setMimeType(ContentService.MimeType.JSON);
-    return jsonOutput;
+    // CORS対応でプレーンテキストを返す（参考サイトの方法）
+    return ContentService.createTextOutput(JSON.stringify(response));
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('POST API Error:', error);
     const errorResponse = {
       error: true,
       status: 500,
       message: 'Internal Server Error',
-      details: error.message
+      details: error.message,
+      stack: error.stack
     };
     
-    const jsonOutput = ContentService.createTextOutput(JSON.stringify(errorResponse));
-    jsonOutput.setMimeType(ContentService.MimeType.JSON);
-    return jsonOutput;
+    return ContentService.createTextOutput(JSON.stringify(errorResponse));
   }
 }
 
@@ -119,6 +125,14 @@ function routeRequest(method, path, params, postData = null) {
           } else if (pathSegments.length === 2) {
             // GET /api/haikus/{id}
             return getHaiku(pathSegments[1]);
+          }
+        } else if (method === 'POST') {
+          if (pathSegments.length === 1) {
+            // POST /api/haikus
+            return createHaiku(postData);
+          } else if (pathSegments[1] === 'test') {
+            // POST /api/haikus/test (おうむ返しテスト)
+            return testPost(postData);
           }
         }
         break;
@@ -196,5 +210,54 @@ function simpleTest() {
   } catch (error) {
     console.error('テスト失敗:', error);
     return { error: true, message: error.message };
+  }
+}
+
+/**
+ * POSTリクエストのテスト用おうむ返し機能
+ */
+function testPost(postData) {
+  console.log('Test POST received:', postData);
+  
+  return {
+    success: true,
+    message: 'POST request received successfully',
+    timestamp: new Date().toISOString(),
+    receivedData: postData,
+    echo: postData // おうむ返し
+  };
+}
+
+/**
+ * 俳句新規作成
+ */
+function createHaiku(postData) {
+  console.log('Creating haiku:', postData);
+  
+  try {
+    // 入力データの検証
+    const requiredFields = ['haiku_text', 'poet_name', 'latitude', 'longitude', 'location_type'];
+    for (const field of requiredFields) {
+      if (!postData[field]) {
+        throw new Error(`Required field missing: ${field}`);
+      }
+    }
+    
+    // まずはテストとして受信データを返す
+    return {
+      success: true,
+      message: 'Haiku creation request received',
+      timestamp: new Date().toISOString(),
+      data: postData
+    };
+    
+  } catch (error) {
+    console.error('Create haiku error:', error);
+    return {
+      success: false,
+      error: true,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    };
   }
 }

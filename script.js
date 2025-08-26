@@ -389,3 +389,105 @@ async function refreshData() {
         showErrorMessage('データの更新に失敗しました: ' + error.message);
     }
 }
+
+// ========== 俳句投稿フォーム関連 ==========
+
+// 俳句投稿フォームの表示/非表示を切り替え
+function toggleHaikuForm() {
+    const formContainer = document.getElementById('haiku-form-container');
+    if (formContainer.style.display === 'none') {
+        openHaikuForm();
+    } else {
+        closeHaikuForm();
+    }
+}
+
+// 俳句投稿フォームを開く
+function openHaikuForm() {
+    const formContainer = document.getElementById('haiku-form-container');
+    formContainer.style.display = 'flex';
+    
+    // フォームをリセット
+    document.getElementById('haiku-form').reset();
+    
+    // 現在地を取得してフォームに設定（バックグラウンドで実行）
+    getCurrentLocationForForm();
+}
+
+// 俳句投稿フォームを閉じる
+function closeHaikuForm() {
+    const formContainer = document.getElementById('haiku-form-container');
+    formContainer.style.display = 'none';
+}
+
+// フォーム用に現在地を取得
+async function getCurrentLocationForForm() {
+    try {
+        const location = await getUserLocation();
+        
+        if (location) {
+            document.getElementById('latitude').value = location.latitude.toFixed(6);
+            document.getElementById('longitude').value = location.longitude.toFixed(6);
+            showInfoMessage('現在地を取得してフォームに設定しました');
+        } else {
+            showErrorMessage('現在地を取得できませんでした。手動で座標を入力してください');
+        }
+    } catch (error) {
+        console.error('フォーム用現在地取得エラー:', error);
+        showErrorMessage('現在地の取得に失敗しました');
+    }
+}
+
+// 俳句投稿フォームの送信処理
+async function submitHaiku(event) {
+    event.preventDefault();
+    
+    try {
+        // フォームデータを取得
+        const form = event.target;
+        const formData = new FormData(form);
+        
+        // 送信ボタンを無効化
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '送信中...';
+        
+        showLoadingState('俳句を投稿中...');
+        
+        // FormDataをオブジェクトに変換
+        const postData = {};
+        for (let [key, value] of formData.entries()) {
+            postData[key] = value;
+        }
+        
+        console.log('送信データ:', postData);
+        
+        // まずはテスト用のおうむ返しAPIを呼び出し
+        const response = await apiClient.testPostHaiku(postData);
+        
+        if (response.success) {
+            showInfoMessage('俳句の投稿が完了しました');
+            console.log('投稿成功:', response);
+            
+            // フォームを閉じる
+            closeHaikuForm();
+            
+            // データを再読み込み
+            await refreshData();
+        } else {
+            throw new Error(response.message || '投稿に失敗しました');
+        }
+        
+    } catch (error) {
+        console.error('俳句投稿エラー:', error);
+        showErrorMessage('俳句の投稿に失敗しました: ' + error.message);
+    } finally {
+        hideLoadingState();
+        
+        // 送信ボタンを元に戻す
+        const form = document.getElementById('haiku-form');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = false;
+        submitBtn.textContent = '投稿';
+    }
+}

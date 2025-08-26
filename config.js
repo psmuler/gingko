@@ -4,7 +4,7 @@
 const API_CONFIG = {
     // Google Apps Script Web App URL
     // 実際のデプロイURLに置き換えてください
-    BASE_URL: 'https://script.google.com/macros/s/AKfycbzPMObwhlFho58wUtVCpUPxreI3swy5YBLG-fW5PkODJyRJOcLGhGuzPK8c2LR9W5CNvg/exec',
+    BASE_URL: 'https://script.google.com/macros/s/AKfycbyx1vv7WvLnsGc3d-npapnFZr9V5b4-ssmG4-t3gXFqWtXyZxrOlfFE4pNUkJ2fjDHj7Q/exec',
 
     // APIエンドポイント
     ENDPOINTS: {

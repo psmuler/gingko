@@ -160,6 +160,106 @@ class HaikuAPIClient {
     }
 
     /**
+     * POSTリクエストを実行 (x-www-form-urlencoded形式)
+     */
+    async makePostRequest(endpoint, postData = {}) {
+        const url = new URL(this.baseUrl);
+        
+        console.log('POST API Request:', endpoint, postData);
+
+        let lastError;
+        
+        // リトライ機能付きリクエスト
+        for (let attempt = 1; attempt <= this.retryCount; attempt++) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+                // x-www-form-urlencoded形式でデータを構築
+                const formBody = new URLSearchParams();
+                formBody.append('path', endpoint);
+                
+                // POSTデータを追加
+                Object.keys(postData).forEach(key => {
+                    if (postData[key] !== null && postData[key] !== undefined) {
+                        formBody.append(key, encodeURI(postData[key]));
+                    }
+                });
+
+                const response = await fetch(url.toString(), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formBody.toString(),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+                }
+
+                const responseText = await response.text();
+                console.log('POST API Raw Response:', responseText);
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    // JSONパースに失敗した場合はテキストをそのまま返す
+                    data = { success: true, message: responseText };
+                }
+                
+                if (data.error) {
+                    throw new Error(data.message || 'API Error');
+                }
+
+                console.log('POST API Response:', data);
+                return data;
+
+            } catch (error) {
+                console.error(`POST API Request failed (attempt ${attempt}):`, error);
+                lastError = error;
+                
+                // 最後の試行でない場合は少し待機
+                if (attempt < this.retryCount) {
+                    await this.delay(1000 * attempt);
+                }
+            }
+        }
+
+        throw lastError;
+    }
+
+    /**
+     * 俳句投稿テスト（おうむ返し）
+     */
+    async testPostHaiku(postData) {
+        try {
+            const response = await this.makePostRequest('api/haikus/test', postData);
+            return response;
+        } catch (error) {
+            console.error('俳句投稿テストに失敗:', error);
+            throw new Error('俳句投稿テストに失敗しました: ' + error.message);
+        }
+    }
+
+    /**
+     * 俳句を投稿
+     */
+    async createHaiku(postData) {
+        try {
+            const response = await this.makePostRequest('api/haikus', postData);
+            return response;
+        } catch (error) {
+            console.error('俳句投稿に失敗:', error);
+            throw new Error('俳句投稿に失敗しました: ' + error.message);
+        }
+    }
+
+    /**
      * 遅延実行のためのヘルパー関数
      */
     delay(ms) {
