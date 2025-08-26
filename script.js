@@ -462,8 +462,8 @@ async function submitHaiku(event) {
         
         console.log('送信データ:', postData);
         
-        // まずはテスト用のおうむ返しAPIを呼び出し
-        const response = await apiClient.testPostHaiku(postData);
+        // 実際の俳句投稿APIを呼び出し
+        const response = await apiClient.createHaiku(postData);
         
         if (response.success) {
             showInfoMessage('俳句の投稿が完了しました');

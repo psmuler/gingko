@@ -229,6 +229,82 @@ function testPost(postData) {
 }
 
 /**
+ * 詠み人を取得または新規作成
+ */
+function getOrCreatePoet(spreadsheet, poetName) {
+  const poetSheet = spreadsheet.getSheetByName(SHEETS.POETS);
+  const poetData = poetSheet.getDataRange().getValues();
+  
+  // ヘッダー行をスキップして検索
+  for (let i = 1; i < poetData.length; i++) {
+    if (poetData[i][1] === poetName) { // nameカラム（B列）
+      return poetData[i][0]; // idカラム（A列）
+    }
+  }
+  
+  // 詠み人が見つからない場合は新規作成
+  const newPoetId = generateNewPoetId(poetSheet);
+  const now = new Date();
+  
+  const poetRow = [
+    newPoetId,           // id
+    poetName,            // name
+    '',                  // name_kana
+    '',                  // birth_year
+    '',                  // death_year
+    '現代',               // period
+    '',                  // biography
+    now,                 // created_at
+    now                  // updated_at
+  ];
+  
+  poetSheet.appendRow(poetRow);
+  console.log(`新しい詠み人を作成しました: ${poetName} (ID: ${newPoetId})`);
+  
+  return newPoetId;
+}
+
+/**
+ * 俳句の新しいIDを生成
+ */
+function generateNewHaikuId(haikuSheet) {
+  const data = haikuSheet.getDataRange().getValues();
+  if (data.length <= 1) { // ヘッダーのみ
+    return 1;
+  }
+  
+  let maxId = 0;
+  for (let i = 1; i < data.length; i++) {
+    const id = parseInt(data[i][0]);
+    if (!isNaN(id) && id > maxId) {
+      maxId = id;
+    }
+  }
+  
+  return maxId + 1;
+}
+
+/**
+ * 詠み人の新しいIDを生成
+ */
+function generateNewPoetId(poetSheet) {
+  const data = poetSheet.getDataRange().getValues();
+  if (data.length <= 1) { // ヘッダーのみ
+    return 1;
+  }
+  
+  let maxId = 0;
+  for (let i = 1; i < data.length; i++) {
+    const id = parseInt(data[i][0]);
+    if (!isNaN(id) && id > maxId) {
+      maxId = id;
+    }
+  }
+  
+  return maxId + 1;
+}
+
+/**
  * 俳句新規作成
  */
 function createHaiku(postData) {
@@ -238,17 +314,73 @@ function createHaiku(postData) {
     // 入力データの検証
     const requiredFields = ['haiku_text', 'poet_name', 'latitude', 'longitude', 'location_type'];
     for (const field of requiredFields) {
-      if (!postData[field]) {
-        throw new Error(`Required field missing: ${field}`);
+      if (!postData[field] || postData[field].toString().trim() === '') {
+        throw new Error(`必須フィールドが未入力です: ${field}`);
       }
     }
     
-    // まずはテストとして受信データを返す
+    // 数値データの検証
+    const latitude = parseFloat(postData.latitude);
+    const longitude = parseFloat(postData.longitude);
+    
+    if (isNaN(latitude) || isNaN(longitude)) {
+      throw new Error('緯度・経度は数値で入力してください');
+    }
+    
+    if (latitude < -90 || latitude > 90) {
+      throw new Error('緯度は-90から90の間で入力してください');
+    }
+    
+    if (longitude < -180 || longitude > 180) {
+      throw new Error('経度は-180から180の間で入力してください');
+    }
+    
+    // スプレッドシートに接続
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    
+    // 詠み人の確認・作成
+    const poetId = getOrCreatePoet(ss, postData.poet_name);
+    
+    // 俳句シートに新しいIDを生成して追加
+    const haikuSheet = ss.getSheetByName(SHEETS.HAIKUS);
+    const newId = generateNewHaikuId(haikuSheet);
+    
+    // 現在の日時
+    const now = new Date();
+    
+    // 俳句データの準備
+    const haikuRow = [
+      newId,                                          // id
+      postData.haiku_text.trim(),                     // haiku_text
+      poetId,                                         // poet_id
+      latitude,                                       // latitude
+      longitude,                                      // longitude
+      postData.location_type,                         // location_type
+      postData.date_composed || '',                   // date_composed
+      postData.location_name || '',                   // location_name
+      postData.description || '',                     // description
+      now,                                           // created_at
+      now                                            // updated_at
+    ];
+    
+    // スプレッドシートに追加
+    haikuSheet.appendRow(haikuRow);
+    
+    console.log(`俳句が追加されました: ID=${newId}`);
+    
     return {
       success: true,
-      message: 'Haiku creation request received',
-      timestamp: new Date().toISOString(),
-      data: postData
+      message: '俳句を投稿しました',
+      data: {
+        id: newId,
+        haiku_text: postData.haiku_text.trim(),
+        poet_name: postData.poet_name,
+        location_name: postData.location_name || '',
+        location_type: postData.location_type,
+        latitude: latitude,
+        longitude: longitude
+      },
+      timestamp: now.toISOString()
     };
     
   } catch (error) {
