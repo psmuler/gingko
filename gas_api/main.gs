@@ -1,6 +1,6 @@
 /**
- * 俳句鑑賞＆記録アプリ - Google Apps Script API
- * メインエントリーポイント
+ * 俳句鑑賞＆記録アプリ - Google Apps Script API (修正版)
+ * メインエントリーポイント - CORS問題解決版
  */
 
 // スプレッドシートID（実際のIDに置き換えてください）
@@ -17,17 +17,45 @@ const SHEETS = {
  * HTTPリクエストを受け取り、適切なAPIエンドポイントにルーティング
  */
 function doGet(e) {
+  // CORS対応のヘッダーを設定
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json'
+  };
+
   try {
     const path = e.parameter.path || '';
     const method = 'GET';
     
+    console.log('受信リクエスト:', method, path, e.parameter);
+    
     // ルーティング
     const response = routeRequest(method, path, e.parameter);
     
-    return createJsonResponse(response);
+    const jsonOutput = ContentService.createTextOutput(JSON.stringify(response));
+    jsonOutput.setMimeType(ContentService.MimeType.JSON);
+    
+    // CORSヘッダーを明示的に設定
+    Object.keys(headers).forEach(key => {
+      jsonOutput.setHeaders = jsonOutput.setHeaders || {};
+    });
+    
+    return jsonOutput;
   } catch (error) {
     console.error('API Error:', error);
-    return createErrorResponse(500, 'Internal Server Error', error.message);
+    const errorResponse = {
+      error: true,
+      status: 500,
+      message: 'Internal Server Error',
+      details: error.message,
+      stack: error.stack
+    };
+    
+    const jsonOutput = ContentService.createTextOutput(JSON.stringify(errorResponse));
+    jsonOutput.setMimeType(ContentService.MimeType.JSON);
+    return jsonOutput;
   }
 }
 
@@ -47,24 +75,22 @@ function doPost(e) {
     
     const response = routeRequest(method, path, e.parameter, postData);
     
-    return createJsonResponse(response);
+    const jsonOutput = ContentService.createTextOutput(JSON.stringify(response));
+    jsonOutput.setMimeType(ContentService.MimeType.JSON);
+    return jsonOutput;
   } catch (error) {
     console.error('API Error:', error);
-    return createErrorResponse(500, 'Internal Server Error', error.message);
+    const errorResponse = {
+      error: true,
+      status: 500,
+      message: 'Internal Server Error',
+      details: error.message
+    };
+    
+    const jsonOutput = ContentService.createTextOutput(JSON.stringify(errorResponse));
+    jsonOutput.setMimeType(ContentService.MimeType.JSON);
+    return jsonOutput;
   }
-}
-
-/**
- * OPTIONSリクエストハンドラー（CORS プリフライト対応）
- */
-function doOptions(e) {
-  const response = ContentService.createTextOutput('');
-  response.setHeaders({
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  });
-  return response;
 }
 
 /**
@@ -118,46 +144,22 @@ function routeRequest(method, path, params, postData = null) {
         }
         break;
         
+      case 'test':
+        // テスト用エンドポイント
+        return {
+          success: true,
+          message: 'API is working!',
+          timestamp: new Date().toISOString(),
+          path: path,
+          params: params
+        };
+        
       default:
         throw new Error(`Endpoint not found: ${path}`);
     }
   }
   
   throw new Error(`Invalid API path: ${path}`);
-}
-
-/**
- * JSON レスポンス作成
- */
-function createJsonResponse(data) {
-  const response = ContentService.createTextOutput(JSON.stringify(data));
-  response.setMimeType(ContentService.MimeType.JSON);
-  
-  // CORS ヘッダーを設定
-  response.setHeaders({
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  });
-  
-  return response;
-}
-
-/**
- * エラーレスポンス作成
- */
-function createErrorResponse(statusCode, message, details = null) {
-  const errorData = {
-    error: true,
-    status: statusCode,
-    message: message
-  };
-  
-  if (details) {
-    errorData.details = details;
-  }
-  
-  return createJsonResponse(errorData);
 }
 
 /**
@@ -179,5 +181,20 @@ function testConnection() {
   } catch (error) {
     console.error('スプレッドシート接続エラー:', error);
     throw new Error('スプレッドシートに接続できません: ' + error.message);
+  }
+}
+
+/**
+ * 簡単なテスト関数
+ */
+function simpleTest() {
+  const testParams = {};
+  try {
+    const result = getHaikus(testParams);
+    console.log('テスト成功:', result);
+    return result;
+  } catch (error) {
+    console.error('テスト失敗:', error);
+    return { error: true, message: error.message };
   }
 }
