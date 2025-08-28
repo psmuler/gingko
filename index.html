@@ -1,24 +1,28 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>俳句鑑賞＆記録アプリ</title>
     <link rel="stylesheet" href="styles.css">
-    
+
     <!-- Supabase JavaScript SDK -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
+
 <body>
     <div id="app">
         <header>
-            <h1>俳句鑑賞＆記録アプリ</h1>
+            <h1>吟行</h1>
+            <p>名句ゆかりの地を巡りましょう</p>
         </header>
         <main>
             <div id="map-container">
                 <div id="map"></div>
                 <div id="map-controls">
-                    <button id="current-location-btn" class="map-control-btn" onclick="goToCurrentLocation()" title="現在地に移動">
+                    <button id="current-location-btn" class="map-control-btn" onclick="goToCurrentLocation()"
+                        title="現在地に移動">
                         📍
                     </button>
                     <button id="refresh-data-btn" class="map-control-btn" onclick="refreshData()" title="データを更新">
@@ -29,7 +33,7 @@
                     </button>
                 </div>
             </div>
-            
+
             <!-- 俳句投稿フォーム -->
             <div id="haiku-form-container" class="form-container" style="display: none;">
                 <div class="form-overlay" onclick="closeHaikuForm()"></div>
@@ -38,14 +42,15 @@
                     <form id="haiku-form" onsubmit="submitHaiku(event)">
                         <div class="form-group">
                             <label for="haiku-text">俳句</label>
-                            <textarea id="haiku-text" name="haiku_text" required placeholder="古池や&#10;蛙飛び込む&#10;水の音"></textarea>
+                            <textarea id="haiku-text" name="haiku_text" required
+                                placeholder="古池や&#10;蛙飛び込む&#10;水の音"></textarea>
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="poet-name">詠み人</label>
                             <input type="text" id="poet-name" name="poet_name" required placeholder="松尾芭蕉">
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="location-type">場所の種別</label>
                             <select id="location-type" name="location_type" required>
@@ -55,35 +60,38 @@
                                 <option value="ゆかりの地">ゆかりの地</option>
                             </select>
                         </div>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="latitude">緯度</label>
-                                <input type="number" id="latitude" name="latitude" step="0.000001" required placeholder="35.7028">
+                                <input type="number" id="latitude" name="latitude" step="0.000001" required
+                                    placeholder="35.7028">
                             </div>
                             <div class="form-group">
                                 <label for="longitude">経度</label>
-                                <input type="number" id="longitude" name="longitude" step="0.000001" required placeholder="139.7753">
+                                <input type="number" id="longitude" name="longitude" step="0.000001" required
+                                    placeholder="139.7753">
                             </div>
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="location-name">場所名</label>
                             <input type="text" id="location-name" name="location_name" placeholder="深川">
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="date-composed">詠んだ日付</label>
                             <input type="date" id="date-composed" name="date_composed">
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="description">説明・備考</label>
                             <textarea id="description" name="description" placeholder="俳句に関する説明や背景など"></textarea>
                         </div>
-                        
+
                         <div class="form-actions">
-                            <button type="button" onclick="getCurrentLocationForForm()" class="secondary-btn">現在地を取得</button>
+                            <button type="button" onclick="getCurrentLocationForForm()"
+                                class="secondary-btn">現在地を取得</button>
                             <button type="button" onclick="closeHaikuForm()" class="secondary-btn">キャンセル</button>
                             <button type="submit" class="primary-btn">投稿</button>
                         </div>
@@ -96,7 +104,7 @@
     <!-- OpenStreetMap + Leaflet を使用 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
+
     <!-- JavaScript ファイル読み込み（正しい順序） -->
     <script src="config.js"></script>
     <script src="supabase-client.js"></script>
@@ -104,4 +112,5 @@
     <script src="api-adapter.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>
