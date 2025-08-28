@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>俳句鑑賞＆記録アプリ</title>
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- Supabase JavaScript SDK -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div id="app">
@@ -94,9 +97,11 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <!-- アプリケーションスクリプト -->
+    <!-- JavaScript ファイル読み込み（正しい順序） -->
     <script src="config.js"></script>
+    <script src="supabase-client.js"></script>
     <script src="api-client.js"></script>
+    <script src="api-adapter.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

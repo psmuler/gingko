@@ -30,6 +30,15 @@ document.addEventListener('DOMContentLoaded', initializeApp);
  */
 async function initializeApp() {
     try {
+        // 設定の検証
+        if (!validateConfig()) {
+            throw new Error('設定が不正です。config.jsを確認してください。');
+        }
+        
+        // APIアダプターの初期化
+        await apiAdapter.initialize();
+        console.log(`🔧 API初期化完了: ${apiAdapter.getAPIType()}`);
+        
         await executeInitializationSequence();
         console.log('✅ アプリケーションの初期化が完了しました');
     } catch (error) {
@@ -147,13 +156,13 @@ async function loadHaikuData() {
         console.log('俳句データの読み込みを開始...');
         
         // API接続テスト
-        const isConnected = await apiClient.testConnection();
+        const isConnected = await apiAdapter.testConnection();
         if (!isConnected) {
             throw new Error('APIサーバーに接続できません');
         }
 
         // 地図用俳句データを取得
-        const haikuData = await apiClient.getHaikusForMap();
+        const haikuData = await apiAdapter.getHaikusForMap();
         console.log(`${haikuData.length}件の俳句データを取得しました`);
 
         // 既存のマーカーをクリア
@@ -247,7 +256,7 @@ async function showHaikuDetail(haikuId) {
     try {
         showLoadingState('俳句詳細を読み込み中...');
         
-        const haiku = await apiClient.getHaiku(haikuId);
+        const haiku = await apiAdapter.getHaiku(haikuId);
         
         // 詳細モーダルまたは別画面を表示（今後実装予定）
         console.log('俳句詳細:', haiku);
@@ -564,7 +573,7 @@ async function executeHaikuSubmission(event) {
     
     console.log('📤 送信データ:', formData);
     
-    const response = await apiClient.createHaiku(formData);
+    const response = await apiAdapter.createHaiku(formData);
     
     if (response.success) {
         handleSubmissionSuccess(response);
