@@ -8,7 +8,7 @@ class HaikuAPIClient {
         this.baseUrl = API_CONFIG.BASE_URL;
         this.timeout = API_CONFIG.TIMEOUT;
         this.retryCount = API_CONFIG.RETRY_COUNT;
-        
+
         // リクエスト種別
         this.REQUEST_TYPES = {
             GET: 'GET',
@@ -210,7 +210,7 @@ class HaikuAPIClient {
     parseResponse(responseText, isPost) {
         try {
             const data = JSON.parse(responseText);
-            
+
             if (data.error) {
                 throw new Error(data.message || 'API Error');
             }
@@ -326,9 +326,9 @@ class HaikuAPIClient {
      */
     async testPostHaiku(postData) {
         return this.executeApiCall(
-            () => this.makeRequest('api/haikus/test', { 
-                method: this.REQUEST_TYPES.POST, 
-                postData 
+            () => this.makeRequest('api/haikus/test', {
+                method: this.REQUEST_TYPES.POST,
+                postData
             }),
             '俳句投稿テストに失敗しました',
             false
@@ -340,9 +340,9 @@ class HaikuAPIClient {
      */
     async createHaiku(postData) {
         return this.executeApiCall(
-            () => this.makeRequest('api/haikus', { 
-                method: this.REQUEST_TYPES.POST, 
-                postData 
+            () => this.makeRequest('api/haikus', {
+                method: this.REQUEST_TYPES.POST,
+                postData
             }),
             '俳句投稿に失敗しました',
             false
