@@ -75,6 +75,7 @@ class SupabaseHaikuClient {
                     longitude,
                     location_type,
                     location_name,
+                    season,
                     poets (
                         id,
                         name,
@@ -429,7 +430,8 @@ class SupabaseHaikuClient {
             latitude: parseFloat(haiku.latitude),
             longitude: parseFloat(haiku.longitude),
             location_type: haiku.location_type,
-            location_name: haiku.location_name
+            location_name: haiku.location_name,
+            season: haiku.season
         };
     }
 

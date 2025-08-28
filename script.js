@@ -188,7 +188,7 @@ async function loadHaikuData() {
 
 // APIデータから俳句マーカーを地図に追加
 function addHaikuMarkerFromAPI(haikuData) {
-    const { id, latitude, longitude, location_name, haiku_text, poet_name, location_type, description } = haikuData;
+    const { id, latitude, longitude, location_name, haiku_text, poet_name, location_type, description, season } = haikuData;
     
     // 緯度経度の検証
     if (!latitude || !longitude || latitude === 0 || longitude === 0) {
@@ -197,11 +197,12 @@ function addHaikuMarkerFromAPI(haikuData) {
     }
 
     // マーカーアイコンの色を場所種別に応じて設定
-    const iconColor = MAP_CONFIG.MARKER_COLORS[location_type] || '#95a5a6';
+    // 句季による色分け
+    const iconColor = MAP_CONFIG.MARKER_COLORS[season] || MAP_CONFIG.MARKER_COLORS['その他'];
 
     // カスタムアイコンを作成
     const customIcon = L.divIcon({
-        className: `haiku-marker ${location_type}`,
+        className: `haiku-marker season-${season || 'other'}`,
         html: `<div style="background-color: ${iconColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
         iconSize: [24, 24],
         iconAnchor: [12, 12]
@@ -217,6 +218,7 @@ function addHaikuMarkerFromAPI(haikuData) {
         haiku_text,
         poet_name,
         location_type,
+        season,
         description
     });
 
@@ -231,13 +233,13 @@ function addHaikuMarkerFromAPI(haikuData) {
 
 // 俳句ポップアップコンテンツを作成
 function createHaikuPopupContent(haiku) {
-    const { id, location_name, haiku_text, poet_name, location_type, description } = haiku;
+    const { id, location_name, haiku_text, poet_name, location_type, description, season } = haiku;
     
     return `
         <div class="haiku-popup" data-haiku-id="${id}">
             <div class="popup-header">
                 <h3 class="location-name">${location_name || '場所不明'}</h3>
-                <span class="location-type-badge ${location_type}">${location_type}</span>
+                <span class="season-badge season-${season || 'other'}">${season || 'その他'}</span>
             </div>
             <div class="haiku-content">
                 <div class="haiku-text">${haiku_text}</div>
