@@ -4,7 +4,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 import requests
 
-API_KEY = "AIzaSyAdjS-9zLPAnusZWCf30VT_9xnz423KZf0"
+API_KEY = os.environ.get('GOOGLE_MAP_API_KEY')
 CSV_FILE = "places.csv"
 IMAGE_DIR = "images"
 
