@@ -1,3 +1,5 @@
 .claude/
+.env
 
-/data_organizer/locator/images/
+/venv/
+/misc/
