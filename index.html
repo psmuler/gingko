@@ -21,15 +21,13 @@
             <div id="map-container">
                 <div id="map"></div>
                 <div id="map-controls">
-                    <button id="current-location-btn" class="map-control-btn" onclick="goToCurrentLocation()"
+                    <button id="current-location-btn" class="map-control-btn gps-nav-btn" onclick="goToCurrentLocation()"
                         title="現在地に移動">
-                        📍
-                    </button>
-                    <button id="refresh-data-btn" class="map-control-btn" onclick="refreshData()" title="データを更新">
-                        🔄
-                    </button>
-                    <button id="add-haiku-btn" class="map-control-btn" onclick="toggleHaikuForm()" title="俳句を投稿">
-                        ✍️
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="3" fill="#4285f4"/>
+                            <circle cx="12" cy="12" r="9" stroke="#4285f4" stroke-width="2" fill="none"/>
+                            <polygon points="12,2 14,8 12,7 10,8" fill="#4285f4"/>
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -105,12 +103,21 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <!-- Leaflet MarkerCluster プラグイン -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
     <!-- JavaScript ファイル読み込み（正しい順序） -->
     <script src="config.js"></script>
     <script src="supabase-client.js"></script>
     <script src="api-client.js"></script>
     <script src="api-adapter.js"></script>
+    <script src="pin-posting.js"></script>
+    <script src="seasonal-suggest.js"></script>
+    <script src="clustering.js"></script>
     <script src="script.js"></script>
+    <script src="phase2-integration.js"></script>
 </body>
 
 </html>

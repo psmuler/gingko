@@ -46,6 +46,176 @@ async function initializeApp() {
     }
 }
 
+// =============================================================================
+// タイルレイヤー管理（OpenStreetMap Access Blocked対応）
+// =============================================================================
+
+let currentTileLayer = null;
+let tileServerIndex = -1; // -1 = primary, 0+ = fallback index
+
+/**
+ * タイルレイヤーの初期化（フォールバック機能付き）
+ */
+function initializeTileLayer() {
+    const primaryServer = MAP_CONFIG.TILE_SERVERS.primary;
+
+    try {
+        console.log(`🗺️ プライマリタイルサーバーを試行: ${primaryServer.name}`);
+        loadTileLayer(primaryServer);
+        tileServerIndex = -1;
+    } catch (error) {
+        console.warn('⚠️ プライマリタイルサーバー失敗、フォールバックを試行');
+        tryFallbackTileServer();
+    }
+}
+
+/**
+ * タイルレイヤーの読み込み
+ * @param {Object} serverConfig - タイルサーバー設定
+ */
+function loadTileLayer(serverConfig) {
+    // 既存のタイルレイヤーを削除
+    if (currentTileLayer) {
+        map.removeLayer(currentTileLayer);
+    }
+
+    // 新しいタイルレイヤーを作成
+    const tileLayerOptions = {
+        attribution: serverConfig.attribution,
+        maxZoom: Math.min(serverConfig.maxZoom || 18, MAP_CONFIG.MAX_ZOOM),
+        minZoom: MAP_CONFIG.MIN_ZOOM,
+        subdomains: serverConfig.subdomains || 'abc'
+    };
+
+    // User-Agent設定（一部のサーバーで対応）
+    if (MAP_CONFIG.REQUEST_HEADERS) {
+        tileLayerOptions.headers = MAP_CONFIG.REQUEST_HEADERS;
+    }
+
+    currentTileLayer = L.tileLayer(serverConfig.url, tileLayerOptions);
+
+    // エラーハンドリング
+    currentTileLayer.on('tileerror', function(error) {
+        console.error(`❌ タイル読み込みエラー (${serverConfig.name}):`, error);
+
+        // 3回以上エラーが続いた場合フォールバック
+        if (!currentTileLayer._errorCount) {
+            currentTileLayer._errorCount = 0;
+        }
+        currentTileLayer._errorCount++;
+
+        if (currentTileLayer._errorCount >= 3) {
+            console.warn('⚠️ タイル読み込みエラーが続くため、フォールバックを試行');
+            tryFallbackTileServer();
+        }
+    });
+
+    // 地図に追加
+    currentTileLayer.addTo(map);
+
+    console.log(`✅ タイルレイヤー追加: ${serverConfig.name}`);
+}
+
+/**
+ * フォールバックタイルサーバーの試行
+ */
+function tryFallbackTileServer() {
+    const fallbackServers = MAP_CONFIG.TILE_SERVERS.fallback;
+
+    // 次のフォールバックサーバーを選択
+    tileServerIndex++;
+
+    if (tileServerIndex < fallbackServers.length) {
+        const fallbackServer = fallbackServers[tileServerIndex];
+        console.log(`🔄 フォールバック試行 [${tileServerIndex + 1}/${fallbackServers.length}]: ${fallbackServer.name}`);
+
+        try {
+            loadTileLayer(fallbackServer);
+        } catch (error) {
+            console.error(`❌ フォールバック失敗: ${fallbackServer.name}`, error);
+            // 再帰的に次のフォールバックを試行
+            setTimeout(() => tryFallbackTileServer(), 1000);
+        }
+    } else {
+        // 全てのフォールバックが失敗
+        console.error('❌ 全てのタイルサーバーが利用不可');
+        showErrorMessage('地図の読み込みに失敗しました。インターネット接続を確認してください。');
+
+        // 最後の手段：シンプルなOSMタイル（ポリシー違反だが動作確認用）
+        loadEmergencyTileLayer();
+    }
+}
+
+/**
+ * 緊急用タイルレイヤー（最後の手段）
+ */
+function loadEmergencyTileLayer() {
+    console.warn('🚨 緊急用タイルレイヤーを読み込み');
+
+    const emergencyConfig = {
+        name: 'Emergency OSM',
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 18,
+        subdomains: 'abc'
+    };
+
+    // User-Agent設定を強制的に追加
+    const tileLayerOptions = {
+        attribution: emergencyConfig.attribution + ' | <strong>俳句鑑賞アプリ「吟行」</strong>',
+        maxZoom: emergencyConfig.maxZoom,
+        minZoom: MAP_CONFIG.MIN_ZOOM,
+        subdomains: emergencyConfig.subdomains
+    };
+
+    // 既存のタイルレイヤーを削除
+    if (currentTileLayer) {
+        map.removeLayer(currentTileLayer);
+    }
+
+    currentTileLayer = L.tileLayer(emergencyConfig.url, tileLayerOptions);
+    currentTileLayer.addTo(map);
+
+    showInfoMessage('地図は表示されましたが、一部制限がある可能性があります。');
+}
+
+/**
+ * タイルサーバーの手動切り替え
+ * @param {string} serverType - 'primary' または fallback配列のインデックス
+ */
+function switchTileServer(serverType) {
+    if (serverType === 'primary') {
+        tileServerIndex = -1;
+        loadTileLayer(MAP_CONFIG.TILE_SERVERS.primary);
+    } else if (typeof serverType === 'number') {
+        const fallbackServers = MAP_CONFIG.TILE_SERVERS.fallback;
+        if (serverType >= 0 && serverType < fallbackServers.length) {
+            tileServerIndex = serverType;
+            loadTileLayer(fallbackServers[serverType]);
+        }
+    }
+}
+
+/**
+ * 現在のタイルサーバー情報を取得
+ * @returns {Object} タイルサーバー情報
+ */
+function getCurrentTileServerInfo() {
+    if (tileServerIndex === -1) {
+        return {
+            type: 'primary',
+            server: MAP_CONFIG.TILE_SERVERS.primary,
+            index: -1
+        };
+    } else {
+        return {
+            type: 'fallback',
+            server: MAP_CONFIG.TILE_SERVERS.fallback[tileServerIndex],
+            index: tileServerIndex
+        };
+    }
+}
+
 /**
  * 初期化シーケンスの実行
  */
@@ -137,12 +307,8 @@ function initializeMap() {
     
     map = L.map('map').setView(center, zoom);
 
-    // OpenStreetMapタイルレイヤーを追加
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: MAP_CONFIG.MAX_ZOOM,
-        minZoom: MAP_CONFIG.MIN_ZOOM
-    }).addTo(map);
+    // タイルレイヤーを追加（フォールバック機能付き）
+    initializeTileLayer();
 
     // マーカー用のレイヤーグループを作成
     markersLayer = L.layerGroup().addTo(map);

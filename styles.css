@@ -447,9 +447,634 @@ main {
     transform: translateY(-1px);
 }
 
+/* =============================================================================
+   Phase 2: ピン投稿システム - インラインフォーム
+   ============================================================================= */
+
+/* インラインフォームコンテナ */
+.inline-form {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 12px 12px 0 0;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(100%);
+    transition: transform 0.3s ease-in-out;
+    z-index: 2000;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: var(--spacing-lg);
+}
+
+.inline-form.active {
+    transform: translateY(0);
+}
+
+/* スワイプインジケーター */
+.swipe-indicator {
+    width: 40px;
+    height: 4px;
+    background: #ccc;
+    border-radius: 2px;
+    margin: 0 auto var(--spacing-md) auto;
+    cursor: grab;
+}
+
+/* フォームヘッダー */
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-header h3 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: var(--font-size-xl);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-light);
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.close-btn:hover {
+    background-color: var(--background-light);
+}
+
+/* フォームグループ */
+.inline-form .form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.inline-form .form-group label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: 500;
+    color: var(--text-color);
+    font-size: var(--font-size-sm);
+}
+
+.inline-form .form-group input,
+.inline-form .form-group textarea,
+.inline-form .form-group select {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    transition: border-color 0.2s ease;
+}
+
+.inline-form .form-group input:focus,
+.inline-form .form-group textarea:focus,
+.inline-form .form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(44, 90, 160, 0.1);
+}
+
+.inline-form .form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.4;
+}
+
+/* フォーム行（2列レイアウト） */
+.form-row {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-group.half {
+    flex: 1;
+}
+
+/* 季語サジェストエリア */
+.season-suggest {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin: var(--spacing-md) 0;
+    flex-wrap: wrap;
+}
+
+.season-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 16px;
+    color: white;
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    transition: all 0.2s ease;
+    min-width: 60px;
+    text-align: center;
+}
+
+.season-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* 季節別ボタン色 */
+.season-btn.spring {
+    background: var(--marker-spring, #3498db);
+}
+
+.season-btn.summer {
+    background: var(--marker-summer, #e74c3c);
+}
+
+.season-btn.autumn {
+    background: var(--marker-autumn, #ffffff);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.season-btn.winter {
+    background: var(--marker-winter, #2c3e50);
+}
+
+.season-btn.newyear {
+    background: var(--marker-newyear, #f1c40f);
+    color: var(--text-color);
+}
+
+.season-btn.other {
+    background: var(--marker-other, #95a5a6);
+}
+
+/* フォームアクション */
+.form-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+}
+
+.form-actions button {
+    flex: 1;
+    padding: var(--spacing-md);
+    border: none;
+    border-radius: 6px;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.primary-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.primary-btn:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.secondary-btn {
+    background: var(--secondary-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.secondary-btn:hover {
+    background: var(--background-light);
+}
+
+/* 既存俳句ポップアップ */
+.haiku-popup {
+    font-family: var(--font-family);
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.haiku-popup .haiku-text {
+    font-size: var(--font-size-lg);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-md);
+    white-space: pre-line;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.haiku-popup .haiku-info {
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-color);
+}
+
+.haiku-popup .poet-name {
+    font-size: var(--font-size-base);
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-xs);
+}
+
+.haiku-popup .location-info {
+    font-size: var(--font-size-sm);
+    color: var(--text-light);
+}
+
+/* モバイル対応 */
+@media (max-width: 480px) {
+    .inline-form {
+        padding: var(--spacing-md);
+        max-height: 80vh;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .season-suggest {
+        gap: var(--spacing-xs);
+    }
+
+    .season-btn {
+        padding: 4px 8px;
+        font-size: 12px;
+        min-width: 50px;
+    }
+
+    .form-actions {
+        gap: var(--spacing-sm);
+    }
+}
+
+/* タッチデバイス向け最適化 */
+@media (hover: none) and (pointer: coarse) {
+    .inline-form .form-group input,
+    .inline-form .form-group textarea,
+    .inline-form .form-group select {
+        font-size: 16px; /* iOS ズーム防止 */
+        padding: var(--spacing-md);
+    }
+
+    .season-btn {
+        min-height: 44px; /* タッチターゲットサイズ */
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .form-actions button {
+        min-height: 48px;
+        padding: var(--spacing-md) var(--spacing-lg);
+    }
+}
+
 .map-control-btn:active {
     transform: translateY(0);
     box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* Phase 2: GPSナビボタン */
+.gps-nav-btn {
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+}
+
+.gps-nav-btn svg {
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+}
+
+/* =============================================================================
+   Phase 2: ピンクラスタリング機能
+   ============================================================================= */
+
+/* カスタムクラスターアイコン */
+.custom-cluster-icon {
+    text-align: center;
+    cursor: pointer;
+}
+
+.cluster-main {
+    transition: all 0.2s ease;
+}
+
+.cluster-main:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+}
+
+/* 個別俳句マーカー */
+.custom-haiku-marker {
+    cursor: pointer;
+}
+
+.haiku-marker {
+    transition: all 0.2s ease;
+}
+
+.haiku-marker:hover {
+    transform: scale(1.2);
+}
+
+/* クラスタリング用ポップアップ */
+.haiku-popup-clustered {
+    font-family: var(--font-family);
+}
+
+.haiku-popup-clustered .leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+}
+
+.cluster-haiku-item {
+    transition: background-color 0.2s ease;
+}
+
+.cluster-haiku-item:hover {
+    background-color: var(--background-light) !important;
+}
+
+.cluster-haiku-item:last-child {
+    border-bottom: none !important;
+}
+
+/* MarkerClusterプラグインのカスタマイズ */
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+    display: none !important; /* カスタムアイコンを使用するためデフォルトを非表示 */
+}
+
+/* クラスター展開時のライン */
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+    transition: all 0.3s ease-out;
+}
+
+/* モバイル対応 */
+@media (max-width: 480px) {
+    .cluster-main {
+        font-size: 10px !important;
+    }
+
+    .haiku-popup-clustered .leaflet-popup-content {
+        font-size: 14px;
+        margin: 8px;
+    }
+
+    .cluster-detail-popup .haiku-list {
+        max-height: 150px !important;
+    }
+}
+
+/* =============================================================================
+   Phase 2: 一時的ピン表示機能
+   ============================================================================= */
+
+/* 一時的ピンマーカー */
+.temporary-pin-marker {
+    cursor: pointer;
+}
+
+.temporary-pin {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+}
+
+/* 初期状態 */
+.temporary-pin.pin-initial {
+    opacity: 0;
+    transform: scale(0.3) translateY(15px);
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 表示状態 */
+.temporary-pin.pin-appear {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* アニメーションなしの表示（フォールバック） */
+.temporary-pin:not(.pin-initial):not(.pin-appear):not(.pin-disappear) {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+.temporary-pin.pin-disappear {
+    opacity: 0;
+    transform: scale(0.8) translateY(-5px);
+    transition: all 0.3s ease-out;
+}
+
+/* パルス効果 */
+.pin-pulse {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: rgba(52, 152, 219, 0.3);
+    border-radius: 50%;
+    animation: pin-pulse 2s infinite;
+    z-index: 1;
+}
+
+@keyframes pin-pulse {
+    0% {
+        transform: scale(0.5);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+/* ピンアイコン */
+.pin-icon {
+    position: relative;
+    font-size: 24px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    z-index: 2;
+    animation: pin-bounce 1s ease-out;
+}
+
+@keyframes pin-bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-8px);
+    }
+    60% {
+        transform: translateY(-4px);
+    }
+}
+
+/* 永続ピンマーカー */
+.permanent-pin-marker {
+    cursor: pointer;
+}
+
+.permanent-haiku-pin {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    transition: all 0.2s ease;
+    animation: permanent-pin-appear 0.5s ease-out;
+}
+
+@keyframes permanent-pin-appear {
+    0% {
+        opacity: 0;
+        transform: scale(0.3) translateY(20px);
+    }
+    50% {
+        transform: scale(1.1) translateY(-5px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.permanent-haiku-pin:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* タップ時の視覚的フィードバック */
+.leaflet-container {
+    cursor: crosshair; /* 地図全体でタップ可能であることを示す */
+}
+
+/* タッチデバイス向けの調整 */
+@media (hover: none) and (pointer: coarse) {
+    .pin-pulse {
+        width: 80px;
+        height: 80px;
+    }
+
+    .pin-icon {
+        font-size: 28px;
+    }
+
+    .permanent-haiku-pin {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+
+    /* タップ領域の拡大 */
+    .temporary-pin-marker,
+    .permanent-pin-marker {
+        padding: 8px;
+    }
+}
+
+/* ピン遷移アニメーション */
+.temporary-pin.pin-moving {
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    animation: pin-move 0.4s ease-out;
+}
+
+@keyframes pin-move {
+    0% {
+        transform: scale(1) translateY(0);
+    }
+    50% {
+        transform: scale(1.1) translateY(-10px);
+    }
+    100% {
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* ピン位置更新時のエフェクト（高速化版） */
+.temporary-pin.pin-location-update {
+    animation: location-update-pulse 0.4s ease-out;
+}
+
+@keyframes location-update-pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.8);
+    }
+    30% {
+        transform: scale(1.08);
+        box-shadow: 0 0 0 8px rgba(52, 152, 219, 0.6);
+    }
+    60% {
+        transform: scale(1.12);
+        box-shadow: 0 0 0 16px rgba(52, 152, 219, 0.3);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 24px rgba(52, 152, 219, 0);
+    }
+}
+
+/* スムーズな位置変更アニメーション（高速化版） */
+.pin-transition-out {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pin-transition-out.moving {
+    opacity: 0.3;
+    transform: scale(0.7) translateY(-8px);
+}
+
+.pin-transition-in {
+    opacity: 0;
+    transform: scale(0.5) translateY(10px);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pin-transition-in.arriving {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+/* アクセシビリティ：アニメーション無効化設定 */
+@media (prefers-reduced-motion: reduce) {
+    .temporary-pin,
+    .pin-pulse,
+    .pin-icon,
+    .permanent-haiku-pin {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    .temporary-pin.pin-appear {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 /* =============================================================================
