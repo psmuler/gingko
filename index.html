@@ -23,10 +23,11 @@
                 <div id="map-controls">
                     <button id="current-location-btn" class="map-control-btn gps-nav-btn" onclick="goToCurrentLocation()"
                         title="現在地に移動">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="12" cy="12" r="3" fill="#4285f4"/>
-                            <circle cx="12" cy="12" r="9" stroke="#4285f4" stroke-width="2" fill="none"/>
-                            <polygon points="12,2 14,8 12,7 10,8" fill="#4285f4"/>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Google Maps風の十字型ナビゲーションアイコン -->
+                            <path d="M10 1 L10 6 M10 14 L10 19 M1 10 L6 10 M14 10 L19 10"
+                                  stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="10" cy="10" r="2.5" fill="white"/>
                         </svg>
                     </button>
                 </div>

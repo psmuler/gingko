@@ -125,25 +125,16 @@ main {
     font-size: 10px;
 }
 
-/* カスタムマーカー用のスタイル */
+/* カスタムマーカー用のスタイル - 涙型ピン対応 */
 .haiku-marker {
-    background-color: #e74c3c;
-    border: 2px solid white;
-    border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    /* 古いスタイルをリセット - 涙型ピンが独自にスタイリング */
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
 }
 
-.haiku-marker.句碑 {
-    background-color: #e74c3c;
-}
-
-.haiku-marker.紀行文 {
-    background-color: #3498db;
-}
-
-.haiku-marker.ゆかりの地 {
-    background-color: #2ecc71;
-}
+/* 古い季節別スタイルは削除 - 涙型ピンが色を管理 */
 
 /* ポップアップスタイル */
 .haiku-popup {
@@ -320,6 +311,12 @@ main {
     color: #155724;
 }
 
+.message-overlay.success .message-content {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
 .message-text {
     flex: 1;
     margin-right: 10px;
@@ -451,7 +448,7 @@ main {
    Phase 2: ピン投稿システム - インラインフォーム
    ============================================================================= */
 
-/* インラインフォームコンテナ */
+/* インラインフォームコンテナ - Phase 1簡易版 */
 .inline-form {
     position: fixed;
     bottom: 0;
@@ -463,9 +460,9 @@ main {
     transform: translateY(100%);
     transition: transform 0.3s ease-in-out;
     z-index: 2000;
-    max-height: 70vh;
+    max-height: 40vh;
     overflow-y: auto;
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
 }
 
 .inline-form.active {
@@ -550,8 +547,13 @@ main {
 
 .inline-form .form-group textarea {
     resize: vertical;
-    min-height: 80px;
-    line-height: 1.4;
+    min-height: 60px;
+    line-height: 1.6;
+    font-size: var(--font-size-lg);
+    font-family: 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
 }
 
 /* フォーム行（2列レイアウト） */
@@ -692,8 +694,25 @@ main {
     color: var(--text-light);
 }
 
+/* PC版での幅調整 - 既存ポップアップとのバランス */
+@media (min-width: 768px) {
+    .inline-form {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%) translateY(100%);
+        width: 480px;
+        max-width: 90vw;
+        margin: 0 auto;
+        border-radius: 12px;
+    }
+
+    .inline-form.active {
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
 /* モバイル対応 */
-@media (max-width: 480px) {
+@media (max-width: 767px) {
     .inline-form {
         padding: var(--spacing-md);
         max-height: 80vh;
@@ -744,15 +763,24 @@ main {
     box-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 
-/* Phase 2: GPSナビボタン */
+/* Phase 2: GPSナビボタン - Google Maps風デザイン */
 .gps-nav-btn {
     border-radius: 50%;
     width: 48px;
     height: 48px;
+    background-color: #4285f4 !important; /* Google Maps blue */
+    border: 2px solid rgba(255,255,255,0.8) !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.15) !important;
+}
+
+.gps-nav-btn:hover {
+    background-color: #3367d6 !important; /* Darker blue on hover */
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2) !important;
 }
 
 .gps-nav-btn svg {
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+    filter: none;
 }
 
 /* =============================================================================
@@ -839,7 +867,7 @@ main {
 }
 
 /* =============================================================================
-   Phase 2: 一時的ピン表示機能
+   Phase 2: 一時的ピン表示機能 - 涙型デザイン
    ============================================================================= */
 
 /* 一時的ピンマーカー */
@@ -852,8 +880,79 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
+    width: 32px;
     height: 40px;
+}
+
+/* 涙型ピン本体 */
+.pin-teardrop {
+    position: relative;
+    width: 20px;
+    height: 26px;
+    background: inherit;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    border: 2px solid white;
+    z-index: 2;
+}
+
+/* 一時ピン用の色 */
+.pin-teardrop.temporary {
+    background-color: #95a5a6; /* グレー */
+}
+
+/* 季節別ピンの色（CLAUDE.md仕様） */
+.pin-teardrop.春 {
+    background-color: #3498db; /* 青 */
+}
+
+.pin-teardrop.夏 {
+    background-color: #e74c3c; /* 赤 */
+}
+
+.pin-teardrop.秋 {
+    background-color: #ffffff; /* 白 */
+    border: 2px solid rgba(0,0,0,0.3);
+}
+
+.pin-teardrop.冬 {
+    background-color: #2c3e50; /* 黒 */
+}
+
+.pin-teardrop.暮・新年 {
+    background-color: #f1c40f; /* 黄 */
+}
+
+.pin-teardrop.その他 {
+    background-color: #95a5a6; /* グレー */
+}
+
+/* ピン内部のドット */
+.pin-dot {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    background-color: white;
+    border-radius: 50%;
+    transform: rotate(45deg);
+    top: 45%;
+    left: 45%;
+    margin-top: -2.5px;
+    margin-left: -2.5px;
+}
+
+/* 秋（白）ピンのドットは黒 */
+.pin-teardrop.秋 .pin-dot {
+    background-color: rgba(0,0,0,0.7);
+}
+
+/* 暮・新年（黄）ピンのドットは黒 */
+.pin-teardrop.暮・新年 .pin-dot {
+    background-color: rgba(0,0,0,0.7);
 }
 
 /* 初期状態 */
@@ -885,47 +984,29 @@ main {
 /* パルス効果 */
 .pin-pulse {
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
     background: rgba(52, 152, 219, 0.3);
     border-radius: 50%;
     animation: pin-pulse 2s infinite;
     z-index: 1;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 @keyframes pin-pulse {
     0% {
-        transform: scale(0.5);
+        transform: translate(-50%, -50%) scale(0.5);
         opacity: 1;
     }
     50% {
-        transform: scale(1);
+        transform: translate(-50%, -50%) scale(1);
         opacity: 0.7;
     }
     100% {
-        transform: scale(1.5);
+        transform: translate(-50%, -50%) scale(1.5);
         opacity: 0;
-    }
-}
-
-/* ピンアイコン */
-.pin-icon {
-    position: relative;
-    font-size: 24px;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-    z-index: 2;
-    animation: pin-bounce 1s ease-out;
-}
-
-@keyframes pin-bounce {
-    0%, 20%, 50%, 80%, 100% {
-        transform: translateY(0);
-    }
-    40% {
-        transform: translateY(-8px);
-    }
-    60% {
-        transform: translateY(-4px);
     }
 }
 

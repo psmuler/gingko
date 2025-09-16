@@ -1,441 +1,294 @@
-# 俳句鑑賞＆記録アプリ「吟行」Phase 2 開発仕様書
+# CLAUDE.md - ピン投稿UI改善仕様
 
-## 📋 プロジェクト概要
+## 概要
 
-**プロジェクト名**: 俳句鑑賞＆記録アプリ「吟行」  
-**フェーズ**: Phase 2 - UI大幅改善・ピン投稿機能・季語サジェスト機能  
-**開発期間**: Phase 1完了後〜  
+俳句投稿UIを従来のボタン式から地図上でのピン投稿方式に改善し、より直感的で使いやすいインターフェースを提供する。
 
-### Phase 1からの引き継ぎ状況
-詳細な現在の仕様はREADME.mdに記載。
+## 基本操作フロー
 
-**実装済み機能**:
-- 地図ベースの俳句表示システム
-- 俳句データベース（haikus, poets テーブル）
-- 季語による色分け表示
-- 基本的な俳句投稿機能
-- 検索機能（俳句本文・詠み人検索）
-- レスポンシブ対応
-
-**技術基盤**:
-- Frontend: HTML5, CSS3, JavaScript (ES6+)
-- Backend: Supabase (PostgreSQL)
-- Map: Leaflet + OpenStreetMap
-- Architecture: APIアダプターパターン
-
----
-
-## 🎯 Phase 2の開発目標
-
-### 主要目標
-1. **地図中心のUI設計への大幅変更**
-2. **直感的なピン投稿システムの実装**  
-3. **季語自動サジェスト機能の実装**
-4. **ピンクラスタリングによる視認性向上**
-
-### 成果指標
-- 投稿までの最短タップ数: 現状5回 → 目標3回以下
-- 季語入力時間: 現状30秒 → 目標1秒以下
-- 複数俳句エリアの視認性向上: クラスタリング実装
-
----
-
-## 🚀 Phase 2 主要機能仕様
-
-### 1. ピン投稿システム
-
-#### 1.1 基本仕様
-**現状**: 画面右下のボタン → フォーム画面 → 現在地のみ投稿可能  
-**変更後**: 地図上任意地点タップ → インライン投稿 → 地図上で操作完結
-
-#### 1.2 ユーザーフロー
+### 地図タップ時の動作
 ```
-地図表示
-↓
-地図上任意地点をタップ
-↓
-分岐:
-├─ 既存俳句がある場合: 俳句ポップアップ表示
-└─ 俳句がない場合: 新句入力インライン表示
-↓
-新句入力中にスワイプ → 詳細入力画面へ遷移
+地図タップ
+    ↓
+既存ピン判定
+    ├─ 既存ピンあり → 既存俳句をピン上にポップアップ表示
+    └─ 既存ピンなし → 一時ピンを配置 + 画面下部に新規俳句入力フォーム表示
 ```
 
-#### 1.3 UI要件
-- **インライン入力フォーム**: 地図上にオーバーレイ表示
-- **スワイプ遷移**: 上スワイプで詳細入力画面への遷移
-- **最小入力項目**: 俳句本文のみ必須、その他はオプション
+### ピン配置仕様
+- **配置精度**: タップした正確な位置に配置
+- **位置変更**: タップ毎に位置更新、入力内容は保持
+- **一時ピン制限**: 同時に1つのみ配置可能
+- **既存ピン優先**: 既存ピンエリアをタップした場合は一時ピンを削除し既存俳句を表示
 
-#### 1.4 技術実装要件
-- タップ位置の緯度経度取得
-- オーバーレイUI実装（CSS transform, position: fixed）
-- スワイプイベント処理（touchstart, touchmove, touchend）
+## 入力インターフェース設計
 
-### 2. 季語自動サジェスト機能
+### 二段階入力システム
 
-#### 2.1 基本仕様
-俳句本文入力中にリアルタイムで季語を検出し、季語・季節をボタンで提示
-
-#### 2.2 季語辞書データベース設計
-
-**新テーブル: `keywords`**
-```sql
-CREATE TABLE keywords (
-  id SERIAL PRIMARY KEY,
-  term VARCHAR(50) NOT NULL,        -- 季語
-  season VARCHAR(10) NOT NULL,      -- 季節（春夏秋冬暮新年その他）
-  category VARCHAR(50),             -- 分類（天文・地理・生活など）
-  reading VARCHAR(100),             -- 読み仮名
-  alternative_terms TEXT[],         -- 別表記・類語
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_keywords_term ON keywords(term);
-CREATE INDEX idx_keywords_season ON keywords(season);
+#### 標準入力画面（画面下部スライドアップ）
+```
+┌─────────────────────┐
+│                     │ ← 地図エリア
+│       🗺️地図        │
+│                     │
+├─────────────────────┤
+│ 俳句: [テキストボックス] │ ← スライドアップフォーム
+│ [投稿] [キャンセル]     │
+└─────────────────────┘
 ```
 
-#### 2.3 サジェスト機能実装
-- **検出ロジック**: 入力文字列に含まれる季語を部分一致で検索
-- **表示方式**: 季語ボタン（青春・赤夏・白秋・黒冬・黄暮新年）
-- **自動入力**: ボタンクリックで季語・季節フィールドを自動設定
+**含まれる項目**:
+- 俳句本文（必須）
+- 投稿ボタン
+- キャンセルボタン
 
-#### 2.4 技術実装要件
+#### 詳細入力画面（フルスクリーン）
+**遷移方法**:
+- モバイル: フォームを上方向にスワイプ
+- PC: フォーム上でスクロール または フォーム外をダブルクリック
+
+**含まれる項目**:
+- 既存フォームの全項目
+- 詠み人情報
+- 場所情報
+- 季節・季語情報
+- 日付情報
+
+### モダンUIの特徴
+- **スムーズアニメーション**: 画面下部からのスライドアップ
+- **レスポンシブデザイン**: 画面サイズに応じた最適化
+- **直感的操作**: ジェスチャーベースの画面遷移
+
+## ピン管理システム
+
+### 一時ピン（新規投稿用）
 ```javascript
-// 季語検出関数の仕様
-async function detectSeasonalTerms(haikuText) {
-  // keywords テーブルから部分一致検索
-  // 複数検出時は出現順で並び替え
-  // 最大3つまで表示
-}
-
-// リアルタイム検出
-haiku_input.addEventListener('input', debounce(detectSeasonalTerms, 300));
+const temporaryPin = {
+  type: "temporary",
+  position: [latitude, longitude],
+  status: "editing",
+  data: {
+    haiku_text: "",
+    // ... 入力データ
+  }
+};
 ```
 
-### 3. ピンクラスタリング
-
-#### 3.1 基本仕様
-同一地域（一定範囲内）に複数俳句がある場合、クラスター表示で視認性向上
-
-#### 3.2 クラスタリング条件
-- **クラスター化距離**: 200m以内の俳句をグループ化
-- **表示方式**: 円形アイコンに俳句数を表示
-- **色分け**: 含まれる俳句の季節で色決定（最多季節）
-
-#### 3.3 技術実装
-- Leaflet.markercluster プラグイン使用
-- カスタムクラスターアイコン実装
-
-### 4. UIデザイン変更
-
-#### 4.1 現在地ボタンデザイン変更
-**現状**: 右下の円形ボタン  
-**変更後**: GPS風ナビアイコン（二等辺三角形切り欠き青アイコン）
-
-#### 4.2 画面構成の簡素化
-- **削除**: 右下投稿ボタン、検索バー（当面）
-- **残存**: 現在地ボタンのみ
-- **追加**: スワイプによる詳細画面遷移
-
----
-
-## 📊 データベース設計変更
-
-### Phase 1 既存テーブル
-```sql
--- 変更なし、継続使用
-poets (id, name, name_kana, birth_year, death_year, period, biography)
-haikus (id, haiku_text, poet_id, latitude, longitude, location_type, 
-        location_name, date_composed, description, season, seasonal_term)
-```
-
-### Phase 2 新規テーブル
-```sql
--- 季語辞書テーブル
-CREATE TABLE keywords (
-  id SERIAL PRIMARY KEY,
-  term VARCHAR(50) NOT NULL UNIQUE,
-  season VARCHAR(10) NOT NULL,
-  category VARCHAR(50),
-  reading VARCHAR(100),
-  alternative_terms TEXT[],
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- インデックス
-CREATE INDEX idx_keywords_term ON keywords(term);
-CREATE INDEX idx_keywords_season ON keywords(season);
-CREATE INDEX idx_keywords_term_trgm ON keywords USING gin(term gin_trgm_ops);
-```
-
-### 季語データ投入仕様
-```sql
--- サンプル季語データ
-INSERT INTO keywords (term, season, category, reading) VALUES
-('桜', '春', '植物', 'さくら'),
-('蝉', '夏', '動物', 'せみ'),
-('紅葉', '秋', '植物', 'もみじ'),
-('雪', '冬', '天文', 'ゆき'),
-('除夜', '暮・新年', '行事', 'じょや');
-```
-
----
-
-## 🔧 技術実装詳細
-
-### 1. ファイル構成変更
-
-```
-俳句鑑賞アプリ/
-├── index.html              # メインHTML（UI大幅変更）
-├── styles.css              # スタイルシート（ピン投稿UI追加）
-├── script.js               # メインJS（ピン投稿ロジック追加）
-├── seasonal-suggest.js     # 季語サジェスト機能（新規）
-├── pin-posting.js          # ピン投稿機能（新規）
-├── clustering.js           # クラスタリング機能（新規）
-├── config.js               # 設定ファイル
-├── supabase-client.js      # Supabaseクライアント
-├── api-adapter.js          # API統合インターフェース
-└── ...
-```
-
-### 2. 主要関数仕様
-
-#### ピン投稿関連
+### 既存ピン
 ```javascript
-// 地図クリック処理
-function handleMapClick(e) {
-  const { lat, lng } = e.latlng;
-  showInlineForm(lat, lng);
-}
-
-// インラインフォーム表示
-function showInlineForm(lat, lng) {
-  // オーバーレイUI表示
-  // 位置情報セット
-  // イベントリスナー設定
-}
-
-// スワイプ検出
-function handleSwipeUp(element) {
-  // touchstart, touchmove, touchend
-  // Y軸移動量で判定
-}
+const existingPin = {
+  type: "existing", 
+  position: [latitude, longitude],
+  status: "published",
+  season: "春", // 季節による色分け
+  data: {
+    // 既存の俳句データ
+  }
+};
 ```
 
-#### 季語サジェスト関連
+### ピン操作フロー
+1. **配置**: 地図タップ → 一時ピン生成
+2. **移動**: 再タップ → ピン位置更新
+3. **削除**: キャンセル → 確認プロンプト → 削除
+4. **投稿**: 投稿ボタン → 既存ピンに変換
+
+## 視覚デザイン仕様
+
+### ピンデザイン
+
+#### 一時ピン（入力中）
+```
+ ╲_____╱
+╱       ╲
+╲       ╱
+ ╱     ╲
+  ╱   ╲
+   ╲ ╱
+    ●
+```
+- **形状**: 涙型（水滴型、先端が下向き）
+- **色**: グレー系（未確定を表現）
+- **サイズ**: 小さめ表示
+- **アニメーション**: 軽微なパルス効果
+
+#### 既存ピン（投稿済み）
+```
+ ╲_____╱
+╱       ╲
+╲       ╱
+ ╱     ╲
+  ╱   ╲
+   ╲ ╱
+    ●
+```
+- **形状**: 一時ピンと同じ涙型（先端下向き）
+- **色**: 季節による塗り分け
+  - 春: #3498db（青）
+  - 夏: #e74c3c（赤）  
+  - 秋: #ffffff（白）
+  - 冬: #2c3e50（黒）
+  - 暮・新年: #f1c40f（黄）
+  - その他: #95a5a6（グレー）
+- **サイズ**: 小さめ表示
+
+### 現在地ボタン
+```
+  ┌─┐
+  │ │
+┌─┼─┼─┐
+│ │ │ │  ← Google Maps風の十字アイコン
+└─┼─┼─┘
+  │ │
+  └─┘
+```
+- **デザイン**: Google Maps風の十字型ナビゲーションアイコン
+- **配置**: 地図上の固定位置（右下など）
+- **機能**: 現在地に地図を移動
+
+## 画面遷移・表示仕様
+
+### 即座性を重視したタップ判定システム
+
+#### 優先順位に基づく処理フロー
+```
+地図タップ
+├─ 【最優先】ポップアップ開いている場合
+│   └─ 即座にポップアップ閉じ（0ms、他の処理なし）
+├─ 【優先2】既存マーカー近辺（判定半径50px）
+│   └─ 即座にポップアップ表示（50ms以内）
+└─ 【優先3】空白エリア
+    └─ 即座に一時ピン配置 + フォーム表示（100ms以内）
+```
+
+### レスポンス時間目標
+- **ポップアップ閉じ**: 0ms（即座実行）
+- **既存俳句表示**: 50ms以内
+- **新規フォーム表示**: 100ms以内
+- **デバウンス遅延**: 50ms（従来300msから短縮）
+
+### 既存俳句表示
+```
+既存マーカータップ
+    ↓ 即座処理（イベント伝播停止）
+ポップアップ表示
+    ├─ 俳句本文
+    ├─ 詠み人
+    ├─ [詳細を見る]ボタン
+    └─ [閉じる]ボタン
+        ↓ 詳細を見る
+    フルスクリーン詳細画面
+```
+
+### 新規俳句入力
+```
+空白エリアタップ
+    ↓ 高速判定（キャッシュ活用）
+一時ピン配置 + 画面下部フォーム表示
+    ├─ 俳句入力
+    ├─ [投稿]ボタン
+    └─ [キャンセル]ボタン
+        ↓ 上スワイプ/ダブルクリック
+    詳細入力画面（フルスクリーン）
+```
+
+### パフォーマンス最適化
+- **メモリキャッシュ**: 既存俳句データの高速検索
+- **座標インデックス**: 空間検索の最適化
+- **イベント分離**: マーカーと地図クリックの独立処理
+
+## モバイル対応
+
+### タッチ操作の最適化
+- **タップ判定**: 適切なタッチ領域の確保
+- **パン/ズーム競合回避**: タップとドラッグの明確な区別
+- **レスポンシブレイアウト**: 画面サイズに応じたフォームサイズ調整
+
+### ジェスチャー仕様
 ```javascript
-// 季語検出メイン関数
-async function detectSeasonalTerms(inputText) {
-  const query = supabase
-    .from('keywords')
-    .select('term, season, category')
-    .ilike('term', `%${inputText}%`)
-    .limit(3);
+const gestureHandling = {
+  tap: "ピン配置/既存ピン表示",
+  swipeUp: "詳細入力画面への遷移", 
+  swipeDown: "フォーム閉じる",
+  pan: "地図移動",
+  pinch: "地図ズーム"
+};
+```
+
+## 実装上の技術仕様
+
+### 状態管理
+```javascript
+const uiState = {
+  mode: "viewing", // "viewing" | "editing" | "detail"
+  temporaryPin: null,
+  activeForm: null,
+  selectedHaiku: null
+};
+```
+
+### イベントハンドリング
+```javascript
+// 地図タップ処理
+map.on('click', function(e) {
+  const clickedPin = checkExistingPin(e.latlng);
   
-  return await query;
-}
-
-// サジェストボタン生成
-function createSeasonButtons(detectedTerms) {
-  // 季節別色分けボタン生成
-  // クリックイベント設定
-}
-
-// デバウンス処理
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-```
-
-#### クラスタリング関連
-```javascript
-// Leaflet markercluster 設定
-const clusters = L.markerClusterGroup({
-  maxClusterRadius: 200,
-  iconCreateFunction: function(cluster) {
-    const markers = cluster.getAllChildMarkers();
-    const seasonCount = getSeasonDistribution(markers);
-    const dominantSeason = getDominantSeason(seasonCount);
-    
-    return L.divIcon({
-      html: `<div class="cluster-icon ${dominantSeason}">${markers.length}</div>`,
-      className: 'custom-cluster'
-    });
+  if (clickedPin) {
+    showExistingHaiku(clickedPin);
+    removeTemporaryPin();
+  } else {
+    createTemporaryPin(e.latlng);
+    showInputForm();
   }
 });
 ```
 
-### 3. CSS設計方針
-
-#### ピン投稿UIスタイリング
+### アニメーション仕様
 ```css
-/* インラインフォーム */
-.inline-form {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: white;
-  border-radius: 12px 12px 0 0;
-  box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+/* スライドアップアニメーション */
+.slide-up-form {
   transform: translateY(100%);
-  transition: transform 0.3s ease-in-out;
+  transition: transform 0.3s ease-out;
 }
 
-.inline-form.active {
+.slide-up-form.active {
   transform: translateY(0);
 }
 
-/* スワイプインジケーター */
-.swipe-indicator {
-  width: 40px;
-  height: 4px;
-  background: #ccc;
-  border-radius: 2px;
-  margin: 8px auto;
+/* ピンアニメーション */
+.temporary-pin {
+  animation: pulse 2s infinite;
 }
 
-/* 季語サジェストボタン */
-.season-suggest {
-  display: flex;
-  gap: 8px;
-  margin: 12px 0;
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
-
-.season-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 16px;
-  color: white;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.season-btn.spring { background: var(--marker-spring); }
-.season-btn.summer { background: var(--marker-summer); }
-.season-btn.autumn { background: var(--marker-autumn); color: black; }
-.season-btn.winter { background: var(--marker-winter); }
 ```
 
----
+## 開発フェーズ分割
 
-## 📱 レスポンシブ対応
+### Phase 1: 基本ピン投稿機能
+- 地図タップでの一時ピン配置
+- 画面下部での簡易俳句入力
+- 基本的な投稿・キャンセル機能
 
-### モバイル優先設計
-- **タッチイベント**: tap, swipe, pinch対応
-- **画面サイズ対応**: 320px〜対応
-- **フォント**: 16px以上でタップしやすさ確保
+### Phase 2: UI/UX改善
+- スライドアップアニメーション
+- ピンデザインの改善
+- 現在地ボタンのリデザイン
 
-### タブレット・デスクトップ対応
-- **マウスイベント**: クリック、ホバー対応
-- **キーボード**: ショートカット対応（Ctrl+M で投稿など）
+### Phase 3: 詳細機能
+- スワイプによる詳細入力画面
+- クラスタ表示機能
+- 高度なアニメーション
 
----
-
-## 🧪 テスト仕様
-
-### 単体テスト
-- [ ] 季語検出ロジック
-- [ ] ピン投稿フォーム
-- [ ] スワイプ検出
-- [ ] クラスタリング
-
-### 統合テスト
-- [ ] 投稿フロー全体
-- [ ] 季語サジェスト〜投稿
-- [ ] 地図操作〜投稿
-
-### ユーザビリティテスト
-- [ ] 投稿時間計測
-- [ ] タップ数計測  
-- [ ] エラー率測定
+### Phase 4: パフォーマンス・最適化
+- レスポンシブ対応の完成
+- パフォーマンス最適化
+- エラーハンドリングの充実
 
 ---
 
-## 📈 パフォーマンス要件
-
-### レスポンス時間
-- **季語検出**: 300ms以内
-- **投稿完了**: 1秒以内
-- **地図描画**: 500ms以内
-
-### データ量
-- **季語辞書**: 10,000語程度想定
-- **検索クエリ**: 部分一致で最適化
-
----
-
-## 🚦 開発フェーズ
-
-### Phase 2.1: ピン投稿システム（4週間目安）
-1. **Week 1**: 地図タップイベント実装
-2. **Week 2**: インラインフォーム実装
-3. **Week 3**: スワイプ遷移実装
-4. **Week 4**: UI調整・テスト
-
-### Phase 2.2: 季語サジェスト（3週間目安）
-1. **Week 1**: キーワードDB設計・データ投入
-2. **Week 2**: 検出ロジック実装
-3. **Week 3**: UI統合・テスト
-
-### Phase 2.3: クラスタリング＆仕上げ（2週間目安）
-1. **Week 1**: クラスタリング実装
-2. **Week 2**: 全体調整・バグ修正
-
----
-
-## 🔒 セキュリティ考慮事項
-
-### 入力値検証
-- 俳句本文: 文字数制限（5-7-5形式チェック）
-- 位置情報: 緯度経度範囲チェック
-- XSS対策: innerHTML → textContent
-
-### レート制限
-- 投稿制限: 1分間に3件まで
-- 検索制限: 1秒間に10回まで
-
----
-
-## 📋 Phase 3への継続課題
-
-### 実装見送り機能
-- [ ] 俳句全文検索（データ量増加後）
-- [ ] 古街道・古地図表示
-- [ ] CSV一括投稿機能
-- [ ] ユーザー登録・ログイン
-- [ ] 写真投稿機能
-- [ ] 吟行専用詠み人ID システム
-
-### 技術的改善課題
-- [ ] PWA対応
-- [ ] オフライン機能
-- [ ] 画像最適化
-- [ ] CDN導入
-
----
-
-## 🎯 成功指標
-
-### 定量指標
-- **投稿完了率**: 80%以上（現状50%想定）
-- **平均投稿時間**: 1分以内（現状3分想定）
-- **季語自動入力率**: 70%以上
-
-### 定性指標
-- ユーザビリティテストでの満足度向上
-- 操作の直感性向上
-- エラー発生率低下
-
----
-
-*Phase 2では「使いやすさ」を最優先に、地図を中心とした直感的な俳句投稿体験の実現を目指します。*
+*この仕様書は開発進行に合わせて継続的に更新されます。*

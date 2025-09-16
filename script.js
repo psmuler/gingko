@@ -366,12 +366,18 @@ function addHaikuMarkerFromAPI(haikuData) {
     // 句季による色分け
     const iconColor = MAP_CONFIG.MARKER_COLORS[season] || MAP_CONFIG.MARKER_COLORS['その他'];
 
-    // カスタムアイコンを作成
+    // カスタムアイコンを作成（涙型デザイン）
     const customIcon = L.divIcon({
         className: `haiku-marker season-${season || 'other'}`,
-        html: `<div style="background-color: ${iconColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
+        html: `
+            <div class="existing-pin pin-appear">
+                <div class="pin-teardrop ${season || 'その他'}" style="background-color: ${iconColor};">
+                    <div class="pin-dot"></div>
+                </div>
+            </div>
+        `,
+        iconSize: [24, 30],
+        iconAnchor: [12, 30]
     });
 
     // マーカーを作成してレイヤーグループに追加
@@ -391,6 +397,24 @@ function addHaikuMarkerFromAPI(haikuData) {
     marker.bindPopup(popupContent, {
         maxWidth: UI_CONFIG.POPUP_MAX_WIDTH,
         className: 'haiku-popup-container'
+    });
+
+    // マーカークリック時に地図クリックイベントの伝播を停止
+    marker.on('click', function(e) {
+        console.log(`📍 既存俳句マーカークリック: ${haiku_text.substring(0, 10)}...`);
+
+        // 一時ピンがあれば削除
+        if (typeof removeTemporaryPin === 'function') {
+            removeTemporaryPin();
+        }
+
+        // インラインフォームがあれば非表示
+        if (typeof hideInlineForm === 'function') {
+            hideInlineForm();
+        }
+
+        // イベントの伝播を停止（地図クリックイベントを防ぐ）
+        L.DomEvent.stopPropagation(e);
     });
 
     // マーカーをレイヤーグループに追加
@@ -475,6 +499,11 @@ function showErrorMessage(message) {
 // 情報メッセージ表示
 function showInfoMessage(message) {
     showMessage(message, 'info');
+}
+
+// 成功メッセージ表示
+function showSuccessMessage(message) {
+    showMessage(message, 'success');
 }
 
 // メッセージ表示（共通）

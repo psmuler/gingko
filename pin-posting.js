@@ -30,6 +30,11 @@ let temporaryPinState = {
 let mapClickDebounceTimeout = null;
 let lastMapClickTime = 0;
 
+// 既存俳句データのメモリキャッシュ（高速検索用）
+let haikuDataCache = [];
+let cacheLastUpdated = 0;
+const CACHE_REFRESH_INTERVAL = 60000; // 1分間キャッシュを保持
+
 // =============================================================================
 // ピン投稿システム初期化
 // =============================================================================
@@ -38,10 +43,24 @@ let lastMapClickTime = 0;
  * ピン投稿システムの初期化
  */
 function initializePinPosting() {
-    createInlineFormHTML();
-    setupMapClickHandler();
-    setupSwipeHandlers();
-    console.log('✅ ピン投稿システム初期化完了');
+    console.log('🚀 ピン投稿システム初期化開始');
+
+    try {
+        createInlineFormHTML();
+        console.log('✅ インラインフォームHTML作成完了');
+
+        // DOM追加の完了を少し待つ
+        setTimeout(() => {
+            setupMapClickHandler();
+            console.log('✅ 地図クリックハンドラー設定完了');
+
+            setupSwipeHandlers();
+            console.log('✅ ピン投稿システム初期化完了');
+        }, 100);
+
+    } catch (error) {
+        console.error('❌ ピン投稿システム初期化エラー:', error);
+    }
 }
 
 /**
@@ -59,8 +78,8 @@ function handleMapClick(e) {
     const currentTime = Date.now();
     const { lat, lng } = e.latlng;
 
-    // デバウンス処理：前回クリックから300ms以内の場合は無視
-    if (currentTime - lastMapClickTime < 300) {
+    // デバウンス処理：前回クリックから50ms以内の場合は無視（高速化）
+    if (currentTime - lastMapClickTime < 50) {
         console.log('⏳ 地図クリック無視（デバウンス）');
         return;
     }
@@ -70,13 +89,13 @@ function handleMapClick(e) {
         clearTimeout(mapClickDebounceTimeout);
     }
 
-    // デバウンス処理：300ms後に実際の処理を実行
+    // デバウンス処理：50ms後に実際の処理を実行（高速化）
     mapClickDebounceTimeout = setTimeout(async () => {
         await handleMapClickAsync(lat, lng);
         lastMapClickTime = Date.now();
-    }, 300);
+    }, 50);
 
-    console.log(`📍 地図クリック受付: ${lat.toFixed(6)}, ${lng.toFixed(6)} (300ms後に処理)`);
+    console.log(`📍 地図クリック受付: ${lat.toFixed(6)}, ${lng.toFixed(6)} (50ms後に処理)`);
 }
 
 /**
@@ -87,20 +106,35 @@ function handleMapClick(e) {
 async function handleMapClickAsync(lat, lng) {
     console.log(`📍 地図クリック処理開始: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
 
-    currentPinLocation = { lat, lng };
+    // ポップアップが開いている場合は、ポップアップを閉じるだけで新規フォームは表示しない
+    if (map && map._popup && map.hasLayer(map._popup) && map._popup.isOpen()) {
+        console.log(`📍 ポップアップ開いているため、クリック処理をスキップ`);
+        map.closePopup();
+        return;
+    }
 
-    // 一時的なピンを表示
-    showTemporaryPin(lat, lng);
-
-    // 既存俳句があるかチェック
+    // 既存俳句があるかを先にチェック
     const existingHaikus = await checkExistingHaikusAtLocation(lat, lng);
 
     if (existingHaikus.length > 0) {
+        // 既存俳句がある場合
+        console.log(`📍 既存俳句発見: ${existingHaikus.length}件`);
+
+        // 既存のフォームや一時ピンをクリア
+        hideInlineForm();
+        removeTemporaryPin();
+
         // 既存俳句表示
         showExistingHaikuPopup(existingHaikus);
-        // 一時的ピンを削除（既存俳句があるため）
-        removeTemporaryPin();
     } else {
+        // 既存俳句がない場合のみ新規入力処理
+        console.log(`📍 新規入力エリア: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+
+        currentPinLocation = { lat, lng };
+
+        // 一時的なピンを表示
+        showTemporaryPin(lat, lng);
+
         // フォームが既に表示されている場合は位置情報を更新、そうでなければフォーム表示
         if (isInlineFormVisible) {
             updateFormLocationInfo(lat, lng);
@@ -113,7 +147,27 @@ async function handleMapClickAsync(lat, lng) {
 }
 
 /**
- * 指定位置の既存俳句をチェック
+ * 俳句データキャッシュを更新
+ */
+async function refreshHaikuCache() {
+    try {
+        const currentTime = Date.now();
+        if (currentTime - cacheLastUpdated < CACHE_REFRESH_INTERVAL && haikuDataCache.length > 0) {
+            return; // キャッシュがまだ有効
+        }
+
+        console.log('🔄 俳句データキャッシュ更新中...');
+        const haikus = await apiAdapter.getHaikusForMap();
+        haikuDataCache = haikus || [];
+        cacheLastUpdated = currentTime;
+        console.log(`✅ 俳句データキャッシュ更新完了: ${haikuDataCache.length}件`);
+    } catch (error) {
+        console.error('❌ 俳句データキャッシュ更新エラー:', error);
+    }
+}
+
+/**
+ * 指定位置の既存俳句をチェック（高速キャッシュ版）
  * @param {number} lat - 緯度
  * @param {number} lng - 経度
  * @param {number} radius - 検索半径（メートル）
@@ -121,16 +175,24 @@ async function handleMapClickAsync(lat, lng) {
  */
 async function checkExistingHaikusAtLocation(lat, lng, radius = 100) {
     try {
-        // 近接範囲での俳句検索
-        const bounds = {
-            north: lat + (radius / 111111),
-            south: lat - (radius / 111111),
-            east: lng + (radius / (111111 * Math.cos(lat * Math.PI / 180))),
-            west: lng - (radius / (111111 * Math.cos(lat * Math.PI / 180)))
-        };
+        // キャッシュを確認・更新
+        await refreshHaikuCache();
 
-        const haikus = await apiAdapter.getHaikusInBounds(bounds);
-        return haikus || [];
+        // メモリキャッシュから高速検索
+        const radiusInDegrees = radius / 111111; // メートルを度に変換
+        const lngRadiusInDegrees = radiusInDegrees / Math.cos(lat * Math.PI / 180);
+
+        const nearbyHaikus = haikuDataCache.filter(haiku => {
+            if (!haiku.latitude || !haiku.longitude) return false;
+
+            const latDiff = Math.abs(haiku.latitude - lat);
+            const lngDiff = Math.abs(haiku.longitude - lng);
+
+            return latDiff <= radiusInDegrees && lngDiff <= lngRadiusInDegrees;
+        });
+
+        console.log(`📍 高速検索結果: ${nearbyHaikus.length}件 (キャッシュから)`);
+        return nearbyHaikus;
     } catch (error) {
         console.error('❌ 既存俳句チェックエラー:', error);
         return [];
@@ -175,17 +237,19 @@ async function showTemporaryPin(lat, lng) {
     // 既存の一時的ピンを削除（削除完了を待機）
     await removeTemporaryPinAsync();
 
-    // 一時的ピンのアイコンを作成
+    // 一時的ピンのアイコンを作成（涙型デザイン）
     const tempPinIcon = L.divIcon({
         html: `
             <div class="temporary-pin pin-initial">
                 <div class="pin-pulse"></div>
-                <div class="pin-icon">📍</div>
+                <div class="pin-teardrop temporary">
+                    <div class="pin-dot"></div>
+                </div>
             </div>
         `,
         className: 'temporary-pin-marker',
-        iconSize: [40, 40],
-        iconAnchor: [20, 35]
+        iconSize: [32, 40],
+        iconAnchor: [16, 40]
     });
 
     // 一時的ピンを作成
@@ -361,30 +425,21 @@ function convertTemporaryPinToPermanent(season = 'その他') {
     // 一時的ピンを削除
     removeTemporaryPin();
 
-    // 季節に応じた色を取得
-    const seasonConfig = {
-        '春': { color: '#3498db', textColor: '#ffffff' },
-        '夏': { color: '#e74c3c', textColor: '#ffffff' },
-        '秋': { color: '#ffffff', textColor: '#333333' },
-        '冬': { color: '#2c3e50', textColor: '#ffffff' },
-        '暮・新年': { color: '#f1c40f', textColor: '#333333' },
-        'その他': { color: '#95a5a6', textColor: '#ffffff' }
-    }[season] || { color: '#95a5a6', textColor: '#ffffff' };
+    // 季節に応じた色を取得（configから）
+    const seasonColor = MAP_CONFIG.MARKER_COLORS[season] || MAP_CONFIG.MARKER_COLORS['その他'];
 
-    // 永続マーカーのアイコンを作成
+    // 永続マーカーのアイコンを作成（涙型デザイン）
     const permanentIcon = L.divIcon({
         html: `
-            <div class="permanent-haiku-pin" style="
-                background-color: ${seasonConfig.color};
-                color: ${seasonConfig.textColor};
-                border: 2px solid rgba(0,0,0,0.3);
-            ">
-                <div class="pin-content">俳</div>
+            <div class="permanent-pin pin-appear">
+                <div class="pin-teardrop ${season || 'その他'}" style="background-color: ${seasonColor};">
+                    <div class="pin-dot"></div>
+                </div>
             </div>
         `,
         className: 'permanent-pin-marker',
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
+        iconSize: [24, 30],
+        iconAnchor: [12, 30]
     });
 
     // 永続マーカーを作成
@@ -403,7 +458,7 @@ function convertTemporaryPinToPermanent(season = 'その他') {
 // =============================================================================
 
 /**
- * インラインフォームHTMLの作成
+ * インラインフォームHTMLの作成（Phase 1: 俳句本文のみ）
  */
 function createInlineFormHTML() {
     const formHTML = `
@@ -416,40 +471,9 @@ function createInlineFormHTML() {
 
             <form id="inline-haiku-form" onsubmit="handleInlineSubmit(event)">
                 <div class="form-group">
-                    <label for="inline-haiku-text">俳句 *</label>
                     <textarea id="inline-haiku-text" name="haiku_text" required
-                              placeholder="古池や&#10;蛙飛び込む&#10;水の音"
-                              rows="3"></textarea>
-                </div>
-
-                <div id="season-suggest-container" class="season-suggest">
-                    <!-- 季語サジェストボタンがここに表示される -->
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group half">
-                        <label for="inline-poet-name">詠み人</label>
-                        <input type="text" id="inline-poet-name" name="poet_name"
-                               placeholder="松尾芭蕉">
-                    </div>
-                    <div class="form-group half">
-                        <label for="inline-season">季節</label>
-                        <select id="inline-season" name="season">
-                            <option value="">選択</option>
-                            <option value="春">春</option>
-                            <option value="夏">夏</option>
-                            <option value="秋">秋</option>
-                            <option value="冬">冬</option>
-                            <option value="暮・新年">暮・新年</option>
-                            <option value="その他">その他</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="inline-location-name">場所名</label>
-                    <input type="text" id="inline-location-name" name="location_name"
-                           placeholder="深川">
+                              placeholder="斧入れて香に驚くや冬木立"
+                              rows="1"></textarea>
                 </div>
 
                 <div class="form-actions">
@@ -467,6 +491,12 @@ function createInlineFormHTML() {
     // body に追加
     document.body.insertAdjacentHTML('beforeend', formHTML);
     inlineFormContainer = document.getElementById('inline-form-container');
+
+    if (inlineFormContainer) {
+        console.log('✅ インラインフォームコンテナDOMに追加成功');
+    } else {
+        console.error('❌ インラインフォームコンテナの追加に失敗');
+    }
 }
 
 /**
@@ -475,25 +505,43 @@ function createInlineFormHTML() {
  * @param {number} lng - 経度
  */
 function showInlineForm(lat, lng) {
-    if (!inlineFormContainer) return;
+    console.log(`📍 インラインフォーム表示開始: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+
+    if (!inlineFormContainer) {
+        console.error('❌ inlineFormContainer が見つかりません');
+        return;
+    }
 
     // 位置情報をフォームにセット
     currentPinLocation = { lat, lng };
 
-    // フォームリセット
-    document.getElementById('inline-haiku-form').reset();
-    document.getElementById('season-suggest-container').innerHTML = '';
+    // フォームリセット（簡素化版）
+    const form = document.getElementById('inline-haiku-form');
+    if (form) {
+        form.reset();
+        console.log('✅ フォームリセット完了');
+    } else {
+        console.error('❌ inline-haiku-form が見つかりません');
+        return;
+    }
 
     // フォーム表示
     inlineFormContainer.classList.add('active');
     isInlineFormVisible = true;
+    console.log('✅ フォーム表示クラス追加完了');
 
     // フォーカス設定
     setTimeout(() => {
-        document.getElementById('inline-haiku-text').focus();
+        const textArea = document.getElementById('inline-haiku-text');
+        if (textArea) {
+            textArea.focus();
+            console.log('✅ フォーカス設定完了');
+        } else {
+            console.error('❌ inline-haiku-text が見つかりません');
+        }
     }, 300);
 
-    console.log(`📍 インラインフォーム表示: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+    console.log(`✅ インラインフォーム表示完了: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
 }
 
 /**
@@ -508,9 +556,15 @@ function hideInlineForm() {
     // 一時的ピンを削除
     removeTemporaryPin();
 
+    // 一時ピンの状態も確実にリセット
+    temporaryPinState.pin = null;
+    temporaryPinState.location = null;
+    temporaryPinState.isCreating = false;
+    temporaryPinState.isRemoving = false;
+
     currentPinLocation = null;
 
-    console.log('📍 インラインフォーム非表示');
+    console.log('📍 インラインフォーム非表示 + 一時ピン状態リセット');
 }
 
 /**
@@ -569,16 +623,18 @@ async function handleInlineSubmit(event) {
         isSubmittingHaiku = true;
         const formData = new FormData(event.target);
 
-        // 俳句データの構築
+        // 俳句データの構築（Phase 1: 最小限のデフォルト値）
         const haikuData = {
             haiku_text: formData.get('haiku_text'),
-            poet_name: formData.get('poet_name') || '詠み人知らず',
+            poet_name: '詠み人知らず',              // デフォルト
             latitude: currentPinLocation.lat,
             longitude: currentPinLocation.lng,
-            location_type: 'ゆかりの地', // デフォルト
-            location_name: formData.get('location_name') || '',
-            season: formData.get('season') || 'その他',
-            seasonal_term: formData.get('seasonal_term') || ''
+            location_type: 'ゆかりの地',           // デフォルト
+            location_name: '',                     // 空文字
+            season: 'その他',                     // デフォルト
+            seasonal_term: '',                     // 空文字
+            description: '',                       // 空文字
+            date_composed: new Date().toISOString().split('T')[0] // 今日の日付
         };
 
         console.log('📍 俳句投稿開始:', haikuData);
@@ -612,11 +668,21 @@ async function handleInlineSubmit(event) {
  * スワイプハンドラーの設定
  */
 function setupSwipeHandlers() {
-    if (!inlineFormContainer) return;
+    console.log('📱 スワイプハンドラー設定開始');
 
-    inlineFormContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
-    inlineFormContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
-    inlineFormContainer.addEventListener('touchend', handleTouchEnd, { passive: true });
+    if (!inlineFormContainer) {
+        console.warn('⚠️ スワイプハンドラー設定をスキップ: inlineFormContainer が未初期化');
+        return;
+    }
+
+    try {
+        inlineFormContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
+        inlineFormContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+        inlineFormContainer.addEventListener('touchend', handleTouchEnd, { passive: true });
+        console.log('✅ スワイプハンドラー設定完了');
+    } catch (error) {
+        console.error('❌ スワイプハンドラー設定エラー:', error);
+    }
 }
 
 /**
