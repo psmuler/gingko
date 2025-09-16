@@ -48,21 +48,12 @@ async function initializeKigoDatabase() {
         console.log('🚀 季語データベース初期化開始...');
         const startTime = Date.now();
 
-        // Supabaseクライアントの取得
-        const supabaseClient = supabaseClientInstance.getClient();
-        if (!supabaseClient) {
-            throw new Error('Supabaseクライアントが初期化されていません');
-        }
+        // Supabaseクライアントの取得と季語データの取得
+        const supabaseClientInstance = getSupabaseClient();
+        await supabaseClientInstance.ensureInitialized();
 
-        // Supabaseから季語データを取得（季語のみ）
-        const { data, error } = await supabaseClient
-            .from('keywords')
-            .select('display_name, display_name_alternatives, season, description')
-            .eq('type', '季語');
-
-        if (error) {
-            throw new Error(`Supabaseエラー: ${error.message}`);
-        }
+        // 季語データを取得
+        const data = await supabaseClientInstance.getKeywords();
 
         if (!data || data.length === 0) {
             throw new Error('季語データが見つかりません');
@@ -77,6 +68,15 @@ async function initializeKigoDatabase() {
             season: item.season || 'その他',
             description: item.description || ''
         }));
+
+        // デバッグ: 冬木立が含まれているかチェック
+        const fuyukidachiItem = kigoDatabase.find(item => item.display_name === '冬木立');
+        if (fuyukidachiItem) {
+            console.log('🔍 冬木立が見つかりました:', fuyukidachiItem);
+        } else {
+            console.log('❌ 冬木立がデータベースに見つかりません');
+            console.log('📝 最初の10件のキーワード:', kigoDatabase.slice(0, 10).map(item => item.display_name));
+        }
 
         // 高速検索用キャッシュを構築
         buildKigoSearchCache();
@@ -121,6 +121,13 @@ function buildKigoSearchCache() {
     });
 
     console.log(`🔧 高速検索キャッシュ構築完了: ${kigoCache.size}エントリ`);
+
+    // デバッグ: 冬木立がキャッシュに含まれているかチェック
+    if (kigoCache.has('冬木立')) {
+        console.log('🔍 冬木立がキャッシュに見つかりました:', kigoCache.get('冬木立'));
+    } else {
+        console.log('❌ 冬木立がキャッシュに見つかりません');
+    }
 }
 
 // =============================================================================
@@ -145,9 +152,14 @@ function extractKigo(haikuText) {
     const matches = new Map(); // 重複排除用
 
     try {
+        // デバッグ: 入力テキストをログ出力
+        console.log(`🔍 季語マッチング開始: "${text}"`);
+
         // キャッシュを使用した高速マッチング
         for (const [term, kigos] of kigoCache.entries()) {
             if (text.includes(term)) {
+                // デバッグ: マッチした場合のログ
+                console.log(`✅ マッチ発見: "${term}" in "${text}"`);
                 kigos.forEach(kigo => {
                     const key = `${kigo.display_name}-${kigo.season}`;
                     if (!matches.has(key)) {
@@ -160,6 +172,11 @@ function extractKigo(haikuText) {
                         });
                     }
                 });
+            }
+
+            // デバッグ: 冬木立の場合の詳細チェック
+            if (term === '冬木立') {
+                console.log(`🔍 冬木立チェック: "${term}" in "${text}" = ${text.includes(term)}`);
             }
 
             // タイムアウト制御
@@ -646,23 +663,29 @@ async function initializeKigoSuggestions() {
 
     try {
         // Supabaseクライアントの初期化完了を待機
-        if (typeof supabaseClientInstance === 'undefined') {
+        if (typeof getSupabaseClient === 'undefined') {
+            throw new Error('getSupabaseClient関数が見つかりません');
+        }
+
+        const supabaseClientInstance = getSupabaseClient();
+        if (!supabaseClientInstance) {
             console.warn('⚠️ Supabaseクライアントが見つかりません。初期化を待機します...');
 
             // 最大10秒間待機
             let attempts = 0;
-            while (typeof supabaseClientInstance === 'undefined' && attempts < 100) {
+            while (!supabaseClientInstance && attempts < 100) {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
+                if (getSupabaseClient()) break;
             }
 
-            if (typeof supabaseClientInstance === 'undefined') {
+            if (!supabaseClientInstance) {
                 throw new Error('Supabaseクライアントの初期化がタイムアウトしました');
             }
         }
 
         // Supabaseクライアントの準備完了を確認
-        await supabaseClientInstance.waitForInitialization();
+        await supabaseClientInstance.ensureInitialized();
 
         // 季語データベース初期化
         await initializeKigoDatabase();
@@ -693,6 +716,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 2000); // 他のコンポーネントの初期化を待つため2秒に延長
 });
+
+// =============================================================================
+// デバッグ用関数（グローバル公開）
+// =============================================================================
+
+// デバッグ用のテスト関数をグローバルに公開
+window.testKigoMatching = function(testText) {
+    console.log(`\n🔍 季語マッチングテスト: "${testText}"`);
+    console.log('データベース初期化状態:', isKigoDatabaseInitialized);
+    console.log('データベースサイズ:', kigoDatabase.length);
+    console.log('キャッシュサイズ:', kigoCache.size);
+
+    const matches = extractKigo(testText);
+    console.log('マッチ結果:', matches);
+
+    return matches;
+};
+
+window.checkKigoInDatabase = function(kigoName) {
+    const found = kigoDatabase.find(item => item.display_name === kigoName);
+    console.log(`"${kigoName}" の検索結果:`, found);
+    return found;
+};
+
+window.checkKigoInCache = function(kigoName) {
+    const found = kigoCache.get(kigoName);
+    console.log(`"${kigoName}" のキャッシュ結果:`, found);
+    return found;
+};
 
 // エクスポート（モジュール対応）
 if (typeof module !== 'undefined' && module.exports) {

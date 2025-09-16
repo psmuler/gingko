@@ -938,6 +938,15 @@ function showDebugPin(lat, lng) {
 }
 
 // =============================================================================
+// グローバル関数の公開
+// =============================================================================
+
+// Phase2統合のために必要な関数をグローバルに公開
+window.showTemporaryPinFromPinPosting = showTemporaryPin;
+window.removeTemporaryPinFromPinPosting = removeTemporaryPin;
+window.showDebugPinFromPinPosting = showDebugPin;
+
+// =============================================================================
 // 初期化時の自動実行
 // =============================================================================
 

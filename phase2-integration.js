@@ -49,8 +49,10 @@ function disableLegacyFeatures() {
  */
 function enablePhase2Features() {
     // 地図クリックイベントでピン投稿を有効化
-    if (window.map && typeof handleMapClick === 'function') {
-        window.map.on('click', handleMapClick);
+    if (typeof map !== 'undefined' && map && typeof handleMapClick === 'function') {
+        map.on('click', handleMapClick);
+    } else {
+        console.warn('⚠️ mapオブジェクトまたはhandleMapClick関数が見つかりません');
     }
 
     // 現在地ボタンの見た目を更新（既にHTML/CSSで対応済み）
@@ -72,10 +74,17 @@ function overrideLoadHaikuData() {
                 // APIアダプター経由でデータ取得
                 const haikus = await apiAdapter.getHaikusForMap();
 
-                // クラスタリング表示
-                if (typeof addHaikuMarkersToCluster === 'function') {
-                    addHaikuMarkersToCluster(haikus);
+                // 既存のマーカーをクリア
+                if (typeof markersLayer !== 'undefined' && markersLayer) {
+                    markersLayer.clearLayers();
                 }
+
+                // 俳句データをマーカーとして追加
+                haikus.forEach(haiku => {
+                    if (typeof addHaikuMarkerFromAPI === 'function') {
+                        addHaikuMarkerFromAPI(haiku);
+                    }
+                });
 
                 // グローバルデータ更新
                 window.haikuData = haikus;
@@ -178,10 +187,12 @@ function enhanceMobileSupport() {
  */
 function optimizePerformance() {
     // 地図の描画最適化
-    if (window.map) {
+    if (typeof map !== 'undefined' && map && map.options) {
         // 地図の描画設定を最適化
-        window.map.options.preferCanvas = true;
-        window.map.options.updateWhenZooming = false;
+        map.options.preferCanvas = true;
+        map.options.updateWhenZooming = false;
+    } else {
+        console.warn('⚠️ 地図オブジェクトが見つからないため、パフォーマンス最適化をスキップします');
     }
 
     // 季語キャッシュの定期クリーンアップ
@@ -287,8 +298,8 @@ function provideDebugInfo() {
 
     // 一時的ピン機能をグローバルに公開
     window.showTemporaryPin = function(lat, lng) {
-        if (typeof showTemporaryPin === 'function') {
-            showTemporaryPin(lat, lng);
+        if (typeof window.showTemporaryPinFromPinPosting === 'function') {
+            window.showTemporaryPinFromPinPosting(lat, lng);
             console.log(`📍 一時的ピン表示: ${lat}, ${lng}`);
         } else {
             console.error('❌ 一時的ピン機能が利用できません');
@@ -296,8 +307,8 @@ function provideDebugInfo() {
     };
 
     window.removeTemporaryPin = function() {
-        if (typeof removeTemporaryPin === 'function') {
-            removeTemporaryPin();
+        if (typeof window.removeTemporaryPinFromPinPosting === 'function') {
+            window.removeTemporaryPinFromPinPosting();
             console.log('📍 一時的ピンを削除しました');
         } else {
             console.error('❌ 一時的ピン削除機能が利用できません');
@@ -306,8 +317,8 @@ function provideDebugInfo() {
 
     // デバッグ用のシンプルピン表示
     window.showDebugPin = function(lat, lng) {
-        if (typeof showDebugPin === 'function') {
-            showDebugPin(lat, lng);
+        if (typeof window.showDebugPinFromPinPosting === 'function') {
+            window.showDebugPinFromPinPosting(lat, lng);
             console.log(`🔧 デバッグピン表示: ${lat}, ${lng}`);
         } else {
             console.error('❌ デバッグピン機能が利用できません');

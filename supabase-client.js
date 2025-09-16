@@ -372,6 +372,50 @@ class SupabaseHaikuClient {
     }
 
     // =============================================================================
+    // 季語・キーワードAPI
+    // =============================================================================
+
+    /**
+     * 季語データを取得
+     */
+    async getKeywords() {
+        await this.ensureInitialized();
+
+        try {
+            // 全ての季語データを取得（デフォルト1000件制限を回避）
+            let allData = [];
+            let hasMoreData = true;
+            let offset = 0;
+            const batchSize = 1000;
+
+            while (hasMoreData) {
+                const { data, error } = await this.supabase
+                    .from('keywords')
+                    .select('display_name, display_name_alternatives, season, description')
+                    .eq('type', '季語')
+                    .range(offset, offset + batchSize - 1)
+                    .order('display_name');
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    allData = allData.concat(data);
+                    offset += batchSize;
+                    hasMoreData = data.length === batchSize;
+                } else {
+                    hasMoreData = false;
+                }
+            }
+
+            console.log(`✅ 季語データ取得: ${allData.length}件（全件取得完了）`);
+            return allData || [];
+        } catch (error) {
+            console.error('❌ 季語データ取得エラー:', error);
+            throw new Error('季語データを取得できませんでした');
+        }
+    }
+
+    // =============================================================================
     // 統計・メタデータAPI
     // =============================================================================
 
