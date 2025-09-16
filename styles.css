@@ -28,6 +28,14 @@
     --marker-kikou: #3498db;    /* 紀行文 - 青 */
     --marker-yukari: #2ecc71;   /* ゆかりの地 - 緑 */
     --marker-default: #95a5a6;  /* デフォルト - グレー */
+
+    /* 季語・季節別カラーパレット */
+    --spring-color: #3498db;    /* 春 - 青 */
+    --summer-color: #e74c3c;    /* 夏 - 赤 */
+    --autumn-color: #ffffff;    /* 秋 - 白 */
+    --winter-color: #2c3e50;    /* 冬 - 黒 */
+    --newyear-color: #f1c40f;   /* 暮・新年 - 黄 */
+    --other-color: #95a5a6;     /* その他 - グレー */
     
     /* スペーシング */
     --spacing-xs: 4px;
@@ -1322,5 +1330,170 @@ main {
     .primary-btn,
     .secondary-btn {
         width: 100%;
+    }
+}
+
+/* =============================================================================
+   季語サジェスト機能スタイル
+   ============================================================================= */
+
+.kigo-section {
+    margin: var(--spacing-md) 0;
+}
+
+.kigo-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    min-height: 40px;
+    align-items: flex-start;
+    justify-content: flex-start;
+}
+
+.kigo-suggestions.empty {
+    justify-content: center;
+}
+
+.kigo-suggestions.has-suggestions {
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--spacing-sm);
+}
+
+/* 季語ボタンスタイル */
+.kigo-suggestion {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 2px solid var(--season-color, var(--other-color));
+    background: white;
+    color: var(--season-color, var(--other-color));
+    border-radius: 20px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    min-height: 32px;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+.kigo-suggestion:hover {
+    background: var(--season-color, var(--other-color));
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* 選択状態のスタイル */
+.kigo-suggestion.selected {
+    background: var(--season-color, var(--other-color));
+    color: white;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+/* 季なしボタン専用スタイル */
+.kigo-suggestion.seasonless {
+    --season-color: var(--other-color);
+    border-style: dashed;
+    opacity: 0.8;
+}
+
+.kigo-suggestion.seasonless:hover,
+.kigo-suggestion.seasonless.selected {
+    opacity: 1;
+    border-style: solid;
+}
+
+/* 季語メッセージ表示 */
+.kigo-message {
+    font-size: var(--font-size-sm);
+    color: var(--text-light);
+    text-align: center;
+    padding: var(--spacing-sm);
+    font-style: italic;
+}
+
+/* 季語エラーメッセージ表示 */
+.kigo-error-message {
+    font-size: var(--font-size-sm);
+    color: var(--error-color);
+    text-align: center;
+    padding: var(--spacing-md);
+    background-color: var(--error-bg);
+    border: 1px solid var(--error-border);
+    border-radius: 4px;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 500;
+}
+
+/* エラー状態のコンテナスタイル */
+.kigo-suggestions.error {
+    border: 1px dashed var(--error-border);
+    padding: var(--spacing-sm);
+    background-color: rgba(248, 215, 218, 0.3);
+    border-radius: 4px;
+}
+
+/* 季節別カラー設定 */
+.kigo-suggestion[data-season="春"] {
+    --season-color: var(--spring-color);
+}
+
+.kigo-suggestion[data-season="夏"] {
+    --season-color: var(--summer-color);
+}
+
+.kigo-suggestion[data-season="秋"] {
+    --season-color: var(--autumn-color);
+    border-color: var(--autumn-color);
+    color: var(--text-color);
+}
+
+.kigo-suggestion[data-season="秋"]:hover,
+.kigo-suggestion[data-season="秋"].selected {
+    background: var(--autumn-color);
+    color: var(--text-color);
+    border-color: var(--text-light);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.kigo-suggestion[data-season="冬"] {
+    --season-color: var(--winter-color);
+}
+
+.kigo-suggestion[data-season="暮・新年"] {
+    --season-color: var(--newyear-color);
+    color: var(--text-color);
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+    .kigo-suggestion {
+        min-height: 44px; /* タッチターゲット最小サイズ */
+        padding: 8px 16px;
+        margin: 3px 2px;
+        font-size: 16px; /* iOS自動ズーム防止 */
+    }
+
+    .kigo-suggestions {
+        max-height: 120px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: var(--spacing-sm);
+    }
+}
+
+/* タブレット・デスクトップ */
+@media (min-width: 769px) {
+    .kigo-suggestion {
+        min-height: 36px;
+        padding: 6px 12px;
+        font-size: var(--font-size-sm);
+    }
+
+    .kigo-suggestions {
+        max-height: 80px;
+        overflow-y: auto;
     }
 }

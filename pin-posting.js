@@ -32,8 +32,8 @@ let lastMapClickTime = 0;
 
 // 既存俳句データのメモリキャッシュ（高速検索用）
 let haikuDataCache = [];
-let cacheLastUpdated = 0;
-const CACHE_REFRESH_INTERVAL = 60000; // 1分間キャッシュを保持
+let pinCacheLastUpdated = 0;
+const PIN_CACHE_REFRESH_INTERVAL = 60000; // 1分間キャッシュを保持
 
 // =============================================================================
 // ピン投稿システム初期化
@@ -152,14 +152,14 @@ async function handleMapClickAsync(lat, lng) {
 async function refreshHaikuCache() {
     try {
         const currentTime = Date.now();
-        if (currentTime - cacheLastUpdated < CACHE_REFRESH_INTERVAL && haikuDataCache.length > 0) {
+        if (currentTime - pinCacheLastUpdated < PIN_CACHE_REFRESH_INTERVAL && haikuDataCache.length > 0) {
             return; // キャッシュがまだ有効
         }
 
         console.log('🔄 俳句データキャッシュ更新中...');
         const haikus = await apiAdapter.getHaikusForMap();
         haikuDataCache = haikus || [];
-        cacheLastUpdated = currentTime;
+        pinCacheLastUpdated = currentTime;
         console.log(`✅ 俳句データキャッシュ更新完了: ${haikuDataCache.length}件`);
     } catch (error) {
         console.error('❌ 俳句データキャッシュ更新エラー:', error);
@@ -458,7 +458,7 @@ function convertTemporaryPinToPermanent(season = 'その他') {
 // =============================================================================
 
 /**
- * インラインフォームHTMLの作成（Phase 1: 俳句本文のみ）
+ * インラインフォームHTMLの作成（Phase 2: 季語サジェスト対応）
  */
 function createInlineFormHTML() {
     const formHTML = `
@@ -474,6 +474,13 @@ function createInlineFormHTML() {
                     <textarea id="inline-haiku-text" name="haiku_text" required
                               placeholder="斧入れて香に驚くや冬木立"
                               rows="1"></textarea>
+                </div>
+
+                <!-- 季語サジェスト機能 -->
+                <div class="kigo-section">
+                    <div id="kigo-suggestions" class="kigo-suggestions">
+                        <!-- 動的に生成される季語ボタン -->
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -530,12 +537,20 @@ function showInlineForm(lat, lng) {
     isInlineFormVisible = true;
     console.log('✅ フォーム表示クラス追加完了');
 
-    // フォーカス設定
+    // フォーカス設定と季語サジェスト機能のアタッチ
     setTimeout(() => {
         const textArea = document.getElementById('inline-haiku-text');
         if (textArea) {
             textArea.focus();
             console.log('✅ フォーカス設定完了');
+
+            // 季語サジェスト機能をアタッチ
+            if (typeof attachKigoSuggestionToInput === 'function') {
+                attachKigoSuggestionToInput('inline-haiku-text', 'kigo-suggestions');
+                console.log('✅ 季語サジェスト機能アタッチ完了');
+            } else {
+                console.warn('⚠️ 季語サジェスト機能が利用できません');
+            }
         } else {
             console.error('❌ inline-haiku-text が見つかりません');
         }
@@ -563,6 +578,12 @@ function hideInlineForm() {
     temporaryPinState.isRemoving = false;
 
     currentPinLocation = null;
+
+    // 季語選択状態もリセット
+    if (typeof resetKigoSelection === 'function') {
+        resetKigoSelection();
+        console.log('✅ 季語選択状態リセット完了');
+    }
 
     console.log('📍 インラインフォーム非表示 + 一時ピン状態リセット');
 }
@@ -623,7 +644,13 @@ async function handleInlineSubmit(event) {
         isSubmittingHaiku = true;
         const formData = new FormData(event.target);
 
-        // 俳句データの構築（Phase 1: 最小限のデフォルト値）
+        // 季語選択状態を取得
+        let selectedKigoInfo = { season: 'その他', selectedKigo: null, isSeasonless: false };
+        if (typeof getCurrentKigoSelection === 'function') {
+            selectedKigoInfo = getCurrentKigoSelection();
+        }
+
+        // 俳句データの構築（Phase 2: 季語情報統合）
         const haikuData = {
             haiku_text: formData.get('haiku_text'),
             poet_name: '詠み人知らず',              // デフォルト
@@ -631,8 +658,8 @@ async function handleInlineSubmit(event) {
             longitude: currentPinLocation.lng,
             location_type: 'ゆかりの地',           // デフォルト
             location_name: '',                     // 空文字
-            season: 'その他',                     // デフォルト
-            seasonal_term: '',                     // 空文字
+            season: selectedKigoInfo.season || 'その他',
+            seasonal_term: selectedKigoInfo.selectedKigo?.display_name || '',
             description: '',                       // 空文字
             date_composed: new Date().toISOString().split('T')[0] // 今日の日付
         };
@@ -724,7 +751,7 @@ function handleTouchEnd(e) {
 }
 
 /**
- * 詳細フォーム画面への遷移
+ * 詳細フォーム画面への遷移（季語選択状態対応）
  */
 function transitionToDetailForm() {
     console.log('📱 詳細フォーム遷移');
@@ -732,10 +759,13 @@ function transitionToDetailForm() {
     // 既存の投稿フォームを表示
     if (typeof toggleHaikuForm === 'function') {
         // 現在の入力値を移行
-        const haikuText = document.getElementById('inline-haiku-text').value;
-        const poetName = document.getElementById('inline-poet-name').value;
-        const season = document.getElementById('inline-season').value;
-        const locationName = document.getElementById('inline-location-name').value;
+        const haikuText = document.getElementById('inline-haiku-text')?.value || '';
+
+        // 季語選択状態を取得
+        let selectedKigoInfo = { season: null, selectedKigo: null, isSeasonless: false };
+        if (typeof getCurrentKigoSelection === 'function') {
+            selectedKigoInfo = getCurrentKigoSelection();
+        }
 
         // インラインフォーム非表示
         hideInlineForm();
@@ -747,19 +777,40 @@ function transitionToDetailForm() {
         setTimeout(() => {
             const detailForm = document.getElementById('haiku-form');
             if (detailForm) {
-                detailForm.querySelector('#haiku-text').value = haikuText;
-                detailForm.querySelector('#poet-name').value = poetName;
-                detailForm.querySelector('#location-name').value = locationName;
-                if (currentPinLocation) {
-                    detailForm.querySelector('#latitude').value = currentPinLocation.lat;
-                    detailForm.querySelector('#longitude').value = currentPinLocation.lng;
+                // 俳句本文を移行
+                const haikuTextField = detailForm.querySelector('#haiku-text');
+                if (haikuTextField) {
+                    haikuTextField.value = haikuText;
                 }
 
-                // 季節設定
-                const seasonSelect = detailForm.querySelector('select[name="location_type"]');
-                if (seasonSelect && season) {
-                    seasonSelect.value = season;
+                // 位置情報を移行
+                if (currentPinLocation) {
+                    const latField = detailForm.querySelector('#latitude');
+                    const lngField = detailForm.querySelector('#longitude');
+                    if (latField) latField.value = currentPinLocation.lat;
+                    if (lngField) lngField.value = currentPinLocation.lng;
                 }
+
+                // 季語・季節情報を移行
+                if (selectedKigoInfo.season) {
+                    const seasonField = detailForm.querySelector('#season, [name="season"]');
+                    if (seasonField) {
+                        seasonField.value = selectedKigoInfo.season;
+                    }
+                }
+
+                if (selectedKigoInfo.selectedKigo?.display_name) {
+                    const seasonalTermField = detailForm.querySelector('#seasonal-term, [name="seasonal_term"]');
+                    if (seasonalTermField) {
+                        seasonalTermField.value = selectedKigoInfo.selectedKigo.display_name;
+                    }
+                }
+
+                console.log('✅ データ移行完了:', {
+                    haiku: haikuText,
+                    season: selectedKigoInfo.season,
+                    seasonalTerm: selectedKigoInfo.selectedKigo?.display_name
+                });
             }
         }, 100);
     }

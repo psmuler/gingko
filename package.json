@@ -1,0 +1,28 @@
+{
+  "name": "claude_proj",
+  "version": "1.0.0",
+  "description": "言葉と場所を結ぶ、俳句の新しい楽しみ方「吟行」とは、旅先で心が動いた瞬間を捉え、俳句を作る（吟じる）ことです。 ルートを事前に決めたり、複数人で同じ場所を巡り、お互いに作った詩を選評し合うこともあります。 机に向かい頭を捻るのではなく、実際にその場に立つことで俳句そのものも変化し、より深い味わいが生まれます。 また、逆に俳句を利用して旅を豊かに記録することができます。 このアプリは、そんな「座」の文学をさらに広げるために、場所場所に紐づいた詩句をわかりやすく表示することを目指しています。",
+  "type": "module",
+  "main": "api-adapter.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "migrate-keywords": "node migrate-keywords.js",
+    "migrate-keywords-clear": "node migrate-keywords.js --clear"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/psmuler/claude_proj.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/psmuler/claude_proj/issues"
+  },
+  "homepage": "https://github.com/psmuler/claude_proj#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.3.1"
+  }
+}
