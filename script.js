@@ -101,68 +101,86 @@ function handleMenuOutsideClick(event) {
 /**
  * このアプリについて画面を表示
  */
-function showAbout() {
+async function showAbout() {
     closeMenu();
 
-    const aboutContent = `
-        <div class="about-container">
-            <h2>吟行について</h2>
-            <div class="about-content">
-                <p>「吟行」は俳句・短歌の名句ゆかりの地を巡り、その場所で詠まれた作品を鑑賞できるアプリです。</p>
+    try {
+        // ローカルファイルのCORS制限を回避するため、相対パスとCacheを設定
+        const response = await fetch('./about.html', {
+            method: 'GET',
+            cache: 'no-cache',
+            headers: {
+                'Content-Type': 'text/html'
+            }
+        });
 
-                <h3>✨ 主な機能</h3>
-                <ul>
-                    <li><strong>地図上での作品表示</strong> - 俳句・短歌が詠まれた場所をピンで表示</li>
-                    <li><strong>季語自動判定</strong> - 入力した俳句から季語を自動で検出</li>
-                    <li><strong>新規投稿</strong> - 地図をタップして新しい俳句・短歌を投稿</li>
-                    <li><strong>クラスタリング表示</strong> - 近くの作品をまとめて効率的に表示</li>
-                </ul>
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-                <h3>🎨 ピンの見方</h3>
-                <div class="pin-legend">
-                    <div class="pin-item">
-                        <span class="pin-sample pin-haiku-spring">💧</span>
-                        <span>俳句（春：青）</span>
+        const aboutContent = await response.text();
+        showModal(aboutContent);
+    } catch (error) {
+        console.error('About画面の読み込みエラー:', error);
+
+        // フォールバック: インラインのAbout画面を表示
+        const fallbackContent = `
+            <div class="about-container">
+                <h2>吟行について</h2>
+                <div class="about-content">
+                    <p>「吟行」は俳句・短歌の名句ゆかりの地を巡り、その場所で詠まれた作品を鑑賞できるアプリです。</p>
+
+                    <h3>✨ 主な機能</h3>
+                    <ul>
+                        <li><strong>地図上での作品表示</strong> - 俳句・短歌が詠まれた場所をピンで表示</li>
+                        <li><strong>季語自動判定</strong> - 入力した俳句から季語を自動で検出</li>
+                        <li><strong>新規投稿</strong> - 地図をタップして新しい俳句・短歌を投稿</li>
+                        <li><strong>クラスタリング表示</strong> - 近くの作品をまとめて効率的に表示</li>
+                    </ul>
+
+                    <h3>🎨 ピンの見方</h3>
+                    <div class="pin-legend">
+                        <div class="pin-item">
+                            <span class="pin-sample pin-haiku-spring">💧</span>
+                            <span>俳句（春：青）</span>
+                            俳句は季節に応じて色分けされています。
+                        </div>
+                        <div class="pin-item">
+                            <span class="pin-sample pin-tanka-utamakura">⛰️</span>
+                            <span>短歌（歌枕あり：紫山）</span>
+                        </div>
+                        <div class="pin-item">
+                            <span class="pin-sample pin-tanka-normal">💧</span>
+                            <span>短歌（歌枕なし：灰）</span>
+                        </div>
                     </div>
-                    <div class="pin-item">
-                        <span class="pin-sample pin-haiku-summer">💧</span>
-                        <span>俳句（夏：赤）</span>
-                    </div>
-                    <div class="pin-item">
-                        <span class="pin-sample pin-haiku-autumn">💧</span>
-                        <span>俳句（秋：白）</span>
-                    </div>
-                    <div class="pin-item">
-                        <span class="pin-sample pin-haiku-winter">💧</span>
-                        <span>俳句（冬：黒）</span>
-                    </div>
-                    <div class="pin-item">
-                        <span class="pin-sample pin-tanka-utamakura">⛰️</span>
-                        <span>短歌（歌枕あり：紫山）</span>
-                    </div>
-                    <div class="pin-item">
-                        <span class="pin-sample pin-tanka-normal">💧</span>
-                        <span>短歌（歌枕なし：灰）</span>
+
+                    <h3>📍 使い方</h3>
+                    <ol>
+                        <li>地図上のピンをタップして俳句・短歌を鑑賞</li>
+                        <li>空白の場所をタップして新しい作品を投稿</li>
+                        <li>🧭ボタンで現在地に移動</li>
+                        <li>地図をピンチ・パンして自由に移動</li>
+                    </ol>
+
+                    <h3>🔍 季語について</h3>
+                    <p>このアプリは豊富な季語データベースを搭載しています。俳句を投稿する際に、自動的に季語を検出し、適切な季節を判定します。</p>
+
+                    <h3>📊 統計機能</h3>
+                    <p>メニューの「統計」から、登録されている作品の統計情報をご覧いただけます。季節別の分布や詩人別の作品数などを確認できます。</p>
+
+                    <div class="about-footer">
+                        <p><strong>開発情報</strong></p>
+                        <p>このアプリはLeaflet.js（地図）、Supabase（データベース）を使用して開発されています。</p>
+                        <p><small>Ver 2.0 - 2024年開発</small></p>
+                        <p><em>※ about.htmlファイルの読み込みに失敗したため、フォールバック画面を表示しています。</em></p>
                     </div>
                 </div>
-
-                <h3>📍 使い方</h3>
-                <ol>
-                    <li>地図上のピンをタップして俳句・短歌を鑑賞</li>
-                    <li>空白の場所をタップして新しい作品を投稿</li>
-                    <li>🧭ボタンで現在地に移動</li>
-                    <li>地図をピンチ・パンして自由に移動</li>
-                </ol>
-
-                <div class="about-footer">
-                    <p><small>Ver 2.0 - 2024年開発</small></p>
-                </div>
+                <button onclick="closeAbout()" class="primary-btn">閉じる</button>
             </div>
-            <button onclick="closeAbout()" class="primary-btn">閉じる</button>
-        </div>
-    `;
-
-    showModal(aboutContent);
+        `;
+        showModal(fallbackContent);
+    }
 }
 
 /**
@@ -671,10 +689,15 @@ function initializeMap() {
                 className += ' cluster-large';
             }
 
+            // クラスタ内の俳句の最多季節を取得
+            const mostCommonSeason = getMostCommonSeason(cluster);
+            const seasonColor = getSeasonColor(mostCommonSeason);
+            const textColor = getSeasonTextColor(mostCommonSeason);
+
             return L.divIcon({
                 html: `
-                    <div class="cluster-main">
-                        <span class="cluster-count">${childCount}</span>
+                    <div class="cluster-main" style="background: ${seasonColor};">
+                        <span class="cluster-count" style="color: ${textColor} !important;">${childCount}</span>
                     </div>
                 `,
                 className: className,
@@ -684,6 +707,63 @@ function initializeMap() {
     }).addTo(map);
 
     console.log('地図の初期化が完了しました');
+}
+
+/**
+ * クラスタ内の俳句から最も多い季節を取得
+ */
+function getMostCommonSeason(cluster) {
+    const childMarkers = cluster.getAllChildMarkers();
+    const seasonCounts = {};
+
+    // 各マーカーの季節を集計
+    childMarkers.forEach(marker => {
+        const haikuData = marker.options.haikuData;
+        if (haikuData && haikuData.season) {
+            const season = haikuData.season;
+            seasonCounts[season] = (seasonCounts[season] || 0) + 1;
+        }
+    });
+
+    // 最も多い季節を取得
+    let mostCommonSeason = 'その他';
+    let maxCount = 0;
+
+    for (const [season, count] of Object.entries(seasonCounts)) {
+        if (count > maxCount) {
+            maxCount = count;
+            mostCommonSeason = season;
+        }
+    }
+
+    return mostCommonSeason;
+}
+
+/**
+ * 季節に対応する色を取得
+ */
+function getSeasonColor(season) {
+    const seasonColors = {
+        '春': '#3498db',      // var(--spring-color)
+        '夏': '#e74c3c',      // var(--summer-color)
+        '秋': '#ffffff',      // var(--autumn-color)
+        '冬': '#2c3e50',      // var(--winter-color)
+        '暮・新年': '#f1c40f', // var(--newyear-color)
+        'その他': '#95a5a6'    // var(--other-color)
+    };
+
+    return seasonColors[season] || seasonColors['その他'];
+}
+
+/**
+ * 季節に対応する文字色を取得
+ */
+function getSeasonTextColor(season) {
+    // 秋（白）と暮・新年（黄）は文字色を黒にする
+    if (season === '秋' || season === '暮・新年') {
+        return '#333';
+    }
+    return '#fff';
 }
 
 // APIから俳句データを読み込み
@@ -815,8 +895,17 @@ async function addHaikuMarkerFromAPI(haikuData) {
         iconAnchor: iconAnchor
     });
 
-    // マーカーを作成してレイヤーグループに追加
-    const marker = L.marker([latitude, longitude], { icon: customIcon });
+    // マーカーを作成してレイヤーグループに追加（季節データも含める）
+    const marker = L.marker([latitude, longitude], {
+        icon: customIcon,
+        haikuData: {
+            season: season,
+            poetry_type: poetry_type,
+            id: id,
+            haiku_text: haiku_text,
+            poet_name: poet_name
+        }
+    });
     
     // ポップアップコンテンツを作成
     const popupContent = createHaikuPopupContent({
@@ -831,7 +920,8 @@ async function addHaikuMarkerFromAPI(haikuData) {
 
     marker.bindPopup(popupContent, {
         maxWidth: UI_CONFIG.POPUP_MAX_WIDTH,
-        className: 'haiku-popup-container'
+        className: 'haiku-popup-container',
+        offset: L.point(0, -40)  // Leaflet.Pointオブジェクトを使用
     });
 
     // マーカークリック時に地図クリックイベントの伝播を停止
@@ -1051,7 +1141,9 @@ function addCurrentLocationMarker(location) {
         </div>
     `;
     
-    currentLocationMarker.bindPopup(popupContent);
+    currentLocationMarker.bindPopup(popupContent, {
+        offset: L.point(0, -30)  // Leaflet.Pointオブジェクトを使用
+    });
 
     // 現在地マーカーをクリックできるようにする
     currentLocationMarker.on('click', function() {

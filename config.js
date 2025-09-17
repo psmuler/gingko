@@ -97,6 +97,7 @@ const UI_CONFIG = {
 
     // ポップアップ設定
     POPUP_MAX_WIDTH: 300,
+    POPUP_OFFSET: [0, -40], // ポップアップの表示位置オフセット [x, y]
 
     // エラーメッセージ表示時間
     ERROR_DISPLAY_TIME: 5000, // 5秒
