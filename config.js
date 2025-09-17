@@ -48,6 +48,45 @@ const MAP_CONFIG = {
         '冬': '#2c3e50',      // 黒
         '暮・新年': '#f1c40f', // 黄
         'その他': '#95a5a6'   // グレー（デフォルト）
+    },
+
+    // タイルサーバー設定
+    TILE_SERVERS: {
+        // プライマリ（無料で安定）
+        primary: {
+            name: 'CartoDB.Positron',
+            url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+            maxZoom: 19,
+            subdomains: 'abcd'
+        },
+
+        // フォールバック選択肢
+        fallback: [
+            {
+                name: 'OpenTopoMap',
+                url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                attribution: 'Map data: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: © <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+                maxZoom: 17,
+                subdomains: 'abc'
+            },
+            {
+                name: 'Stamen.Toner',
+                url: 'https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}{r}.png',
+                attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> — Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 20,
+                subdomains: 'abcd'
+            }
+        ]
+    },
+
+    // User-Agent設定（OSMポリシー準拠）
+    USER_AGENT: 'Haiku-Ginko/2.0 (+https://github.com/psmuler/claude_proj)',
+
+    // リクエストヘッダー設定
+    REQUEST_HEADERS: {
+        'User-Agent': 'Haiku-Ginko/2.0 (+https://github.com/psmuler/claude_proj)',
+        'Referer': 'https://psmuler.github.io/claude_proj/'
     }
 };
 
@@ -58,13 +97,18 @@ const UI_CONFIG = {
 
     // ポップアップ設定
     POPUP_MAX_WIDTH: 300,
+    POPUP_OFFSET: [0, -40], // ポップアップの表示位置オフセット [x, y]
+
+    // クラスタリング設定
+    CLUSTER_MAX_RADIUS: 2, // クラスター化する最大半径（ピクセル）- 小さいほど個別ピン表示が多くなる
+    CLUSTER_DISABLE_AT_ZOOM: 10, // この倍率以上でクラスタリングを無効化（個別ピンのみ表示）
+    CLUSTER_SPIDERFY_ON_MAX_ZOOM: true, // 最大ズーム時にスパイダーファイ表示
 
     // エラーメッセージ表示時間
     ERROR_DISPLAY_TIME: 5000, // 5秒
 
     // パフォーマンス設定
     DEBOUNCE_SEARCH_TIME: 300, // 検索デバウンス時間
-    MAP_CLUSTER_MAX_ZOOM: 15   // クラスター表示の最大ズーム
 };
 
 // アプリケーション設定
