@@ -1313,15 +1313,15 @@ main {
 }
 
 .cluster-main {
-    width: 40px;
-    height: 40px;
+    width: 28px;
+    height: 28px;
     background: #2c5aa0;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    border: 3px solid white;
+    border: 2px solid white;
     transition: all 0.2s ease;
 }
 
@@ -1334,27 +1334,29 @@ main {
     /* 季節に応じてJavaScriptで動的に設定されるため、デフォルトのみ設定 */
     color: white;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 12px;
     font-family: var(--font-family);
 }
 
 /* クラスターサイズ別スタイル */
 .cluster-small .cluster-main {
-    background: #3498db; /* 青 */
+    width: 24px;
+    height: 24px;
 }
 
-.cluster-medium .cluster-main {
-    background: #e74c3c; /* 赤 */
+.cluster-small .cluster-count {
+    font-size: 10px;
 }
+
+/* .cluster-medium はデフォルトサイズ（28px）を使用 */
 
 .cluster-large .cluster-main {
-    background: #2c3e50; /* 濃い青 */
-    width: 50px;
-    height: 50px;
+    width: 32px;
+    height: 32px;
 }
 
 .cluster-large .cluster-count {
-    font-size: 16px;
+    font-size: 13px;
 }
 
 /* 個別俳句マーカー */

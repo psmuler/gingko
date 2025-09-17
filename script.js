@@ -228,7 +228,7 @@ async function generateStats() {
         });
 
         const topPoets = Object.entries(poetStats)
-            .sort(([,a], [,b]) => b - a)
+            .sort(([, a], [, b]) => b - a)
             .slice(0, 5);
 
         return `
@@ -257,12 +257,12 @@ async function generateStats() {
                         <h3>🌸 季節別分布</h3>
                         <div class="season-stats">
                             ${Object.entries(seasonStats).map(([season, count]) =>
-                                `<div class="season-item">
+            `<div class="season-item">
                                     <span class="season-name">${season}</span>
                                     <span class="season-count">${count}作品</span>
                                     <div class="season-bar" style="width: ${(count / totalCount * 100)}%"></div>
                                 </div>`
-                            ).join('')}
+        ).join('')}
                         </div>
                     </div>
 
@@ -270,12 +270,12 @@ async function generateStats() {
                         <h3>✍️ 詩人ランキング</h3>
                         <div class="poet-ranking">
                             ${topPoets.map(([poet, count], index) =>
-                                `<div class="poet-item">
+            `<div class="poet-item">
                                     <span class="poet-rank">${index + 1}</span>
                                     <span class="poet-name">${poet}</span>
                                     <span class="poet-count">${count}作品</span>
                                 </div>`
-                            ).join('')}
+        ).join('')}
                         </div>
                     </div>
                 </div>
@@ -456,7 +456,7 @@ function loadTileLayer(serverConfig) {
     currentTileLayer = L.tileLayer(serverConfig.url, tileLayerOptions);
 
     // エラーハンドリング
-    currentTileLayer.on('tileerror', function(error) {
+    currentTileLayer.on('tileerror', function (error) {
         console.error(`❌ タイル読み込みエラー (${serverConfig.name}):`, error);
 
         // 3回以上エラーが続いた場合フォールバック
@@ -590,7 +590,7 @@ async function executeInitializationSequence() {
         showLoadingState(step.message);
         await step.action();
     }
-    
+
     hideLoadingState();
 }
 
@@ -624,7 +624,7 @@ async function initializeMapWithLocation() {
  */
 async function setupLocationBasedView() {
     const userLocation = await getUserLocation();
-    
+
     if (userLocation) {
         setupMapWithUserLocation(userLocation);
     } else {
@@ -637,7 +637,7 @@ async function setupLocationBasedView() {
  */
 function setupMapWithUserLocation(userLocation) {
     console.log('📍 現在地を取得しました:', userLocation);
-    
+
     map.setView([userLocation.latitude, userLocation.longitude], 12);
     addCurrentLocationMarker(userLocation);
     showInfoMessage('現在地を中心に地図を表示しています');
@@ -665,25 +665,27 @@ function initializeMap() {
     // 地図設定を使用
     const center = MAP_CONFIG.DEFAULT_CENTER;
     const zoom = MAP_CONFIG.DEFAULT_ZOOM;
-    
+
     map = L.map('map').setView(center, zoom);
 
     // タイルレイヤーを追加（フォールバック機能付き）
     initializeTileLayer();
 
     // マーカー用のクラスターグループを作成
+    const maxRadius = UI_CONFIG.CLUSTER_MAX_RADIUS || 2;
+
     markersLayer = L.markerClusterGroup({
-        maxClusterRadius: 50, // クラスター化する最大半径
+        maxClusterRadius: maxRadius, // 常時固定値でクラスタリング
         spiderfyOnMaxZoom: true, // 最大ズーム時にスパイダーファイ
         showCoverageOnHover: false, // ホバー時のカバレッジ表示を無効
         zoomToBoundsOnClick: true, // クリック時にズームイン
-        iconCreateFunction: function(cluster) {
+        iconCreateFunction: function (cluster) {
             const childCount = cluster.getChildCount();
             let className = 'custom-cluster-icon';
 
-            if (childCount < 10) {
+            if (childCount < 4) {
                 className += ' cluster-small';
-            } else if (childCount < 50) {
+            } else if (childCount < 7) {
                 className += ' cluster-medium';
             } else {
                 className += ' cluster-large';
@@ -701,10 +703,16 @@ function initializeMap() {
                     </div>
                 `,
                 className: className,
-                iconSize: [40, 40]
+                iconSize: [28, 28]
             });
         }
     }).addTo(map);
+
+    // クラスタリング設定のデバッグ情報
+    console.log('🔧 クラスタリング設定:');
+    console.log(`  - 最大半径: ${maxRadius}px`);
+    console.log(`  - スパイダーファイ: 有効`);
+    console.log(`  - 常時クラスタリング: 有効`);
 
     console.log('地図の初期化が完了しました');
 }
@@ -770,7 +778,7 @@ function getSeasonTextColor(season) {
 async function loadHaikuData() {
     try {
         console.log('俳句データの読み込みを開始...');
-        
+
         // API接続テスト
         const isConnected = await apiAdapter.testConnection();
         if (!isConnected) {
@@ -790,7 +798,18 @@ async function loadHaikuData() {
         });
 
         console.log('俳句データの読み込みが完了しました');
-        
+
+        // マーカー統計情報をログ出力
+        setTimeout(() => {
+            const totalMarkers = markersLayer.getLayers().length;
+            const currentZoom = map.getZoom();
+
+            console.log(`📊 マーカー統計:`);
+            console.log(`  - 総マーカー数: ${totalMarkers}`);
+            console.log(`  - 現在のズームレベル: ${currentZoom}`);
+            console.log(`  - クラスタリング: 常時有効`);
+        }, 100); // マーカー追加完了を待つ
+
         // データが0件の場合の対応
         if (haikuData.length === 0) {
             showInfoMessage('俳句データが見つかりませんでした');
@@ -833,7 +852,7 @@ async function hasUtamakura(text) {
 // APIデータから俳句マーカーを地図に追加
 async function addHaikuMarkerFromAPI(haikuData) {
     const { id, latitude, longitude, location_name, haiku_text, poet_name, location_type, description, season, poetry_type } = haikuData;
-    
+
     // 緯度経度の検証
     if (!latitude || !longitude || latitude === 0 || longitude === 0) {
         console.warn('無効な座標データ:', haikuData);
@@ -906,7 +925,7 @@ async function addHaikuMarkerFromAPI(haikuData) {
             poet_name: poet_name
         }
     });
-    
+
     // ポップアップコンテンツを作成
     const popupContent = createHaikuPopupContent({
         id,
@@ -925,7 +944,7 @@ async function addHaikuMarkerFromAPI(haikuData) {
     });
 
     // マーカークリック時に地図クリックイベントの伝播を停止
-    marker.on('click', function(e) {
+    marker.on('click', function (e) {
         console.log(`📍 既存俳句マーカークリック: ${haiku_text.substring(0, 10)}...`);
 
         // 一時ピンがあれば削除
@@ -973,13 +992,13 @@ function createHaikuPopupContent(haiku) {
 async function showHaikuDetail(haikuId) {
     try {
         showLoadingState('俳句詳細を読み込み中...');
-        
+
         const haiku = await apiAdapter.getHaiku(haikuId);
-        
+
         // 詳細モーダルまたは別画面を表示（今後実装予定）
         console.log('俳句詳細:', haiku);
         alert(`俳句詳細\n\n${haiku.haiku_text}\n\n詠み人: ${haiku.poet ? haiku.poet.name : '不明'}\n場所: ${haiku.location_name}`);
-        
+
         hideLoadingState();
     } catch (error) {
         console.error('俳句詳細の取得に失敗:', error);
@@ -991,9 +1010,9 @@ async function showHaikuDetail(haikuId) {
 // ローディング状態表示
 function showLoadingState(message = '読み込み中...') {
     if (isLoading) return;
-    
+
     isLoading = true;
-    
+
     // ローディング要素を作成
     const loadingEl = document.createElement('div');
     loadingEl.id = 'loading-overlay';
@@ -1003,14 +1022,14 @@ function showLoadingState(message = '読み込み中...') {
             <div class="loading-message">${message}</div>
         </div>
     `;
-    
+
     document.body.appendChild(loadingEl);
 }
 
 // ローディング状態非表示
 function hideLoadingState() {
     isLoading = false;
-    
+
     const loadingEl = document.getElementById('loading-overlay');
     if (loadingEl) {
         loadingEl.remove();
@@ -1042,9 +1061,9 @@ function showMessage(message, type = 'info') {
             <button class="message-close" onclick="this.parentElement.parentElement.remove()">×</button>
         </div>
     `;
-    
+
     document.body.appendChild(messageEl);
-    
+
     // 自動削除
     setTimeout(() => {
         if (messageEl.parentElement) {
@@ -1070,7 +1089,7 @@ function getUserLocation() {
         };
 
         navigator.geolocation.getCurrentPosition(
-            function(position) {
+            function (position) {
                 const location = {
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude,
@@ -1080,12 +1099,12 @@ function getUserLocation() {
                 console.log('位置情報取得成功:', location);
                 resolve(location);
             },
-            function(error) {
+            function (error) {
                 console.warn('位置情報の取得に失敗:', error);
-                
+
                 // エラーの種類に応じてメッセージを変更
                 let errorMessage = '';
-                switch(error.code) {
+                switch (error.code) {
                     case error.PERMISSION_DENIED:
                         errorMessage = '位置情報の使用が拒否されました';
                         break;
@@ -1099,7 +1118,7 @@ function getUserLocation() {
                         errorMessage = '位置情報の取得中にエラーが発生しました';
                         break;
                 }
-                
+
                 console.warn(errorMessage, error);
                 resolve(null); // エラーでもnullを返してアプリを継続
             },
@@ -1127,7 +1146,7 @@ function addCurrentLocationMarker(location) {
 
     // 現在地マーカーを追加
     const currentLocationMarker = L.marker(
-        [location.latitude, location.longitude], 
+        [location.latitude, location.longitude],
         { icon: currentLocationIcon }
     ).addTo(map);
 
@@ -1140,13 +1159,13 @@ function addCurrentLocationMarker(location) {
             <p>精度: 約${Math.round(location.accuracy)}m</p>
         </div>
     `;
-    
+
     currentLocationMarker.bindPopup(popupContent, {
         offset: L.point(0, -30)  // Leaflet.Pointオブジェクトを使用
     });
 
     // 現在地マーカーをクリックできるようにする
-    currentLocationMarker.on('click', function() {
+    currentLocationMarker.on('click', function () {
         map.setView([location.latitude, location.longitude], 15);
     });
 
@@ -1157,16 +1176,16 @@ function addCurrentLocationMarker(location) {
 async function goToCurrentLocation() {
     try {
         showLoadingState('現在地を取得中...');
-        
+
         const location = await getUserLocation();
-        
+
         if (location) {
             map.setView([location.latitude, location.longitude], 15);
             showInfoMessage('現在地に移動しました');
         } else {
             showErrorMessage('現在地を取得できませんでした');
         }
-        
+
         hideLoadingState();
     } catch (error) {
         console.error('現在地取得エラー:', error);
@@ -1195,7 +1214,7 @@ async function refreshData() {
 function toggleHaikuForm() {
     const formContainer = getFormContainer();
     const isVisible = formContainer.style.display !== 'none';
-    
+
     isVisible ? closeHaikuForm() : openHaikuForm();
 }
 
@@ -1205,10 +1224,10 @@ function toggleHaikuForm() {
 function openHaikuForm() {
     const formContainer = getFormContainer();
     const form = getHaikuForm();
-    
+
     formContainer.style.display = 'flex';
     form.reset();
-    
+
     // 現在地を非同期で取得
     getCurrentLocationForForm();
 }
@@ -1227,7 +1246,7 @@ function closeHaikuForm() {
 async function getCurrentLocationForForm() {
     try {
         const location = await getUserLocation();
-        
+
         if (location) {
             setLocationInputs(location);
             showInfoMessage('現在地を取得してフォームに設定しました');
@@ -1246,7 +1265,7 @@ async function getCurrentLocationForForm() {
 function setLocationInputs(location) {
     const latInput = document.getElementById('latitude');
     const lngInput = document.getElementById('longitude');
-    
+
     if (latInput && lngInput) {
         latInput.value = location.latitude.toFixed(6);
         lngInput.value = location.longitude.toFixed(6);
@@ -1269,12 +1288,12 @@ function showLocationInputError() {
  */
 async function submitHaiku(event) {
     event.preventDefault();
-    
+
     if (isSubmittingHaiku) {
         console.log('⚠️ 投稿処理中のため、重複送信をブロックしました');
         return;
     }
-    
+
     try {
         await executeHaikuSubmission(event);
     } catch (error) {
@@ -1289,17 +1308,17 @@ async function submitHaiku(event) {
  */
 async function executeHaikuSubmission(event) {
     isSubmittingHaiku = true;
-    
+
     const form = event.target;
     const formData = prepareFormData(form);
-    
+
     disableFormButtons(form);
     showLoadingState('俳句を投稿中...');
-    
+
     console.log('📤 送信データ:', formData);
-    
+
     const response = await apiAdapter.createHaiku(formData);
-    
+
     if (response.success) {
         handleSubmissionSuccess(response);
     } else {
@@ -1313,11 +1332,11 @@ async function executeHaikuSubmission(event) {
 function prepareFormData(form) {
     const formData = new FormData(form);
     const postData = {};
-    
+
     for (let [key, value] of formData.entries()) {
         postData[key] = value;
     }
-    
+
     return postData;
 }
 
@@ -1327,12 +1346,12 @@ function prepareFormData(form) {
 function disableFormButtons(form) {
     const submitBtn = form.querySelector('button[type="submit"]');
     const allButtons = form.querySelectorAll('button');
-    
+
     if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.textContent = '送信中...';
     }
-    
+
     allButtons.forEach(btn => btn.disabled = true);
 }
 
@@ -1342,7 +1361,7 @@ function disableFormButtons(form) {
 async function handleSubmissionSuccess(response) {
     showInfoMessage('俳句の投稿が完了しました');
     console.log('✅ 投稿成功:', response);
-    
+
     closeHaikuForm();
     await refreshData();
 }
@@ -1370,15 +1389,15 @@ function cleanupSubmissionState() {
 function enableFormButtons() {
     const form = getHaikuForm();
     if (!form) return;
-    
+
     const submitBtn = form.querySelector('button[type="submit"]');
     const allButtons = form.querySelectorAll('button');
-    
+
     if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = '投稿';
     }
-    
+
     allButtons.forEach(btn => btn.disabled = false);
 }
 

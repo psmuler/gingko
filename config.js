@@ -99,12 +99,16 @@ const UI_CONFIG = {
     POPUP_MAX_WIDTH: 300,
     POPUP_OFFSET: [0, -40], // ポップアップの表示位置オフセット [x, y]
 
+    // クラスタリング設定
+    CLUSTER_MAX_RADIUS: 2, // クラスター化する最大半径（ピクセル）- 小さいほど個別ピン表示が多くなる
+    CLUSTER_DISABLE_AT_ZOOM: 10, // この倍率以上でクラスタリングを無効化（個別ピンのみ表示）
+    CLUSTER_SPIDERFY_ON_MAX_ZOOM: true, // 最大ズーム時にスパイダーファイ表示
+
     // エラーメッセージ表示時間
     ERROR_DISPLAY_TIME: 5000, // 5秒
 
     // パフォーマンス設定
     DEBOUNCE_SEARCH_TIME: 300, // 検索デバウンス時間
-    MAP_CLUSTER_MAX_ZOOM: 15   // クラスター表示の最大ズーム
 };
 
 // アプリケーション設定
