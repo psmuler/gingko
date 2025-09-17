@@ -35,6 +35,361 @@ async function initializeApp() {
 }
 
 // =============================================================================
+// ハンバーガーメニュー機能
+// =============================================================================
+
+/**
+ * ハンバーガーメニューのトグル
+ */
+function toggleMenu() {
+    const menu = document.getElementById('nav-menu');
+    const toggle = document.getElementById('menu-toggle');
+
+    if (menu && toggle) {
+        menu.classList.toggle('active');
+        toggle.classList.toggle('active');
+
+        // ESCキーでメニューを閉じるイベントリスナーを追加/削除
+        if (menu.classList.contains('active')) {
+            document.addEventListener('keydown', handleMenuEscKey);
+            document.addEventListener('click', handleMenuOutsideClick);
+        } else {
+            document.removeEventListener('keydown', handleMenuEscKey);
+            document.removeEventListener('click', handleMenuOutsideClick);
+        }
+    }
+}
+
+/**
+ * メニューを閉じる
+ */
+function closeMenu() {
+    const menu = document.getElementById('nav-menu');
+    const toggle = document.getElementById('menu-toggle');
+
+    if (menu && toggle) {
+        menu.classList.remove('active');
+        toggle.classList.remove('active');
+        document.removeEventListener('keydown', handleMenuEscKey);
+        document.removeEventListener('click', handleMenuOutsideClick);
+    }
+}
+
+/**
+ * ESCキーでメニューを閉じる
+ */
+function handleMenuEscKey(event) {
+    if (event.key === 'Escape') {
+        closeMenu();
+    }
+}
+
+/**
+ * メニュー外クリックでメニューを閉じる
+ */
+function handleMenuOutsideClick(event) {
+    const menu = document.getElementById('nav-menu');
+    const toggle = document.getElementById('menu-toggle');
+
+    if (menu && toggle &&
+        !menu.contains(event.target) &&
+        !toggle.contains(event.target)) {
+        closeMenu();
+    }
+}
+
+/**
+ * このアプリについて画面を表示
+ */
+function showAbout() {
+    closeMenu();
+
+    const aboutContent = `
+        <div class="about-container">
+            <h2>吟行について</h2>
+            <div class="about-content">
+                <p>「吟行」は俳句・短歌の名句ゆかりの地を巡り、その場所で詠まれた作品を鑑賞できるアプリです。</p>
+
+                <h3>✨ 主な機能</h3>
+                <ul>
+                    <li><strong>地図上での作品表示</strong> - 俳句・短歌が詠まれた場所をピンで表示</li>
+                    <li><strong>季語自動判定</strong> - 入力した俳句から季語を自動で検出</li>
+                    <li><strong>新規投稿</strong> - 地図をタップして新しい俳句・短歌を投稿</li>
+                    <li><strong>クラスタリング表示</strong> - 近くの作品をまとめて効率的に表示</li>
+                </ul>
+
+                <h3>🎨 ピンの見方</h3>
+                <div class="pin-legend">
+                    <div class="pin-item">
+                        <span class="pin-sample pin-haiku-spring">💧</span>
+                        <span>俳句（春：青）</span>
+                    </div>
+                    <div class="pin-item">
+                        <span class="pin-sample pin-haiku-summer">💧</span>
+                        <span>俳句（夏：赤）</span>
+                    </div>
+                    <div class="pin-item">
+                        <span class="pin-sample pin-haiku-autumn">💧</span>
+                        <span>俳句（秋：白）</span>
+                    </div>
+                    <div class="pin-item">
+                        <span class="pin-sample pin-haiku-winter">💧</span>
+                        <span>俳句（冬：黒）</span>
+                    </div>
+                    <div class="pin-item">
+                        <span class="pin-sample pin-tanka-utamakura">⛰️</span>
+                        <span>短歌（歌枕あり：紫山）</span>
+                    </div>
+                    <div class="pin-item">
+                        <span class="pin-sample pin-tanka-normal">💧</span>
+                        <span>短歌（歌枕なし：灰）</span>
+                    </div>
+                </div>
+
+                <h3>📍 使い方</h3>
+                <ol>
+                    <li>地図上のピンをタップして俳句・短歌を鑑賞</li>
+                    <li>空白の場所をタップして新しい作品を投稿</li>
+                    <li>🧭ボタンで現在地に移動</li>
+                    <li>地図をピンチ・パンして自由に移動</li>
+                </ol>
+
+                <div class="about-footer">
+                    <p><small>Ver 2.0 - 2024年開発</small></p>
+                </div>
+            </div>
+            <button onclick="closeAbout()" class="primary-btn">閉じる</button>
+        </div>
+    `;
+
+    showModal(aboutContent);
+}
+
+/**
+ * 統計情報を表示
+ */
+function showStats() {
+    closeMenu();
+
+    // 統計データを取得して表示
+    generateStats().then(statsContent => {
+        showModal(statsContent);
+    }).catch(error => {
+        console.error('統計データ取得エラー:', error);
+        showModal('<div class="error-message">統計データの取得に失敗しました。</div>');
+    });
+}
+
+/**
+ * 統計データを生成
+ */
+async function generateStats() {
+    try {
+        const supabaseClientInstance = getSupabaseClient();
+        const haikuData = await supabaseClientInstance.getHaiku();
+
+        // 基本統計
+        const totalCount = haikuData.length;
+        const haikuCount = haikuData.filter(h => h.poetry_type === '俳句').length;
+        const tankaCount = haikuData.filter(h => h.poetry_type === '短歌').length;
+
+        // 季節別統計
+        const seasonStats = {
+            '春': haikuData.filter(h => h.season === '春').length,
+            '夏': haikuData.filter(h => h.season === '夏').length,
+            '秋': haikuData.filter(h => h.season === '秋').length,
+            '冬': haikuData.filter(h => h.season === '冬').length,
+            'その他': haikuData.filter(h => !['春', '夏', '秋', '冬'].includes(h.season)).length
+        };
+
+        // 詩人別統計（上位5名）
+        const poetStats = {};
+        haikuData.forEach(h => {
+            const poet = h.poet_name || '不明';
+            poetStats[poet] = (poetStats[poet] || 0) + 1;
+        });
+
+        const topPoets = Object.entries(poetStats)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 5);
+
+        return `
+            <div class="stats-container">
+                <h2>📊 統計情報</h2>
+                <div class="stats-content">
+                    <div class="stats-section">
+                        <h3>📝 作品数</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-number">${totalCount}</span>
+                                <span class="stat-label">総作品数</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">${haikuCount}</span>
+                                <span class="stat-label">俳句</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">${tankaCount}</span>
+                                <span class="stat-label">短歌</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-section">
+                        <h3>🌸 季節別分布</h3>
+                        <div class="season-stats">
+                            ${Object.entries(seasonStats).map(([season, count]) =>
+                                `<div class="season-item">
+                                    <span class="season-name">${season}</span>
+                                    <span class="season-count">${count}作品</span>
+                                    <div class="season-bar" style="width: ${(count / totalCount * 100)}%"></div>
+                                </div>`
+                            ).join('')}
+                        </div>
+                    </div>
+
+                    <div class="stats-section">
+                        <h3>✍️ 詩人ランキング</h3>
+                        <div class="poet-ranking">
+                            ${topPoets.map(([poet, count], index) =>
+                                `<div class="poet-item">
+                                    <span class="poet-rank">${index + 1}</span>
+                                    <span class="poet-name">${poet}</span>
+                                    <span class="poet-count">${count}作品</span>
+                                </div>`
+                            ).join('')}
+                        </div>
+                    </div>
+                </div>
+                <button onclick="closeModal()" class="primary-btn">閉じる</button>
+            </div>
+        `;
+    } catch (error) {
+        throw error;
+    }
+}
+
+/**
+ * 季語テストを実行
+ */
+function runKigoTest() {
+    closeMenu();
+
+    if (typeof window.runKigoAccuracyTest === 'function') {
+        console.log('🧪 季語抽出精度テスト開始...');
+        window.runKigoAccuracyTest().then(results => {
+            const testResultsContent = generateTestResultsHTML(results);
+            showModal(testResultsContent);
+        }).catch(error => {
+            console.error('季語テスト実行エラー:', error);
+            showModal('<div class="error-message">季語テストの実行に失敗しました。</div>');
+        });
+    } else {
+        showModal(`
+            <div class="test-info">
+                <h2>🧪 季語テスト</h2>
+                <p>季語テスト機能を開始します。ブラウザのコンソールをご確認ください。</p>
+                <p><strong>実行方法:</strong></p>
+                <ol>
+                    <li>F12キーでデベロッパーツールを開く</li>
+                    <li>コンソールタブを選択</li>
+                    <li><code>runKigoAccuracyTest()</code>を実行</li>
+                </ol>
+                <button onclick="closeModal()" class="primary-btn">閉じる</button>
+            </div>
+        `);
+    }
+}
+
+/**
+ * テスト結果のHTML生成
+ */
+function generateTestResultsHTML(results) {
+    if (!results) return '<div class="error-message">テスト結果がありません。</div>';
+
+    const accuracy = (results.exactMatch / results.total * 100).toFixed(1);
+    const detection = (results.detected / results.total * 100).toFixed(1);
+
+    return `
+        <div class="test-results-container">
+            <h2>🧪 季語抽出テスト結果</h2>
+            <div class="test-summary">
+                <div class="result-item">
+                    <span class="result-number">${accuracy}%</span>
+                    <span class="result-label">精度</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-number">${detection}%</span>
+                    <span class="result-label">検出率</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-number">${results.total}</span>
+                    <span class="result-label">テスト句数</span>
+                </div>
+            </div>
+
+            <div class="test-details">
+                <p>✅ 完全一致: ${results.exactMatch}句</p>
+                <p>🟡 部分一致: ${results.partialMatch}句</p>
+                <p>❌ 未検出: ${results.missed}句</p>
+            </div>
+
+            <p><small>詳細な結果はブラウザのコンソールでご確認いただけます。</small></p>
+            <button onclick="closeModal()" class="primary-btn">閉じる</button>
+        </div>
+    `;
+}
+
+/**
+ * モーダル表示
+ */
+function showModal(content) {
+    // 既存のモーダルがあれば削除
+    const existingModal = document.querySelector('.modal-overlay');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const modalHTML = `
+        <div class="modal-overlay" onclick="closeModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                ${content}
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // フェードインアニメーション
+    setTimeout(() => {
+        const modal = document.querySelector('.modal-overlay');
+        if (modal) {
+            modal.classList.add('active');
+        }
+    }, 10);
+}
+
+/**
+ * モーダルを閉じる
+ */
+function closeModal() {
+    const modal = document.querySelector('.modal-overlay');
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.remove();
+        }, 300);
+    }
+}
+
+/**
+ * About画面を閉じる（closeModalのエイリアス）
+ */
+function closeAbout() {
+    closeModal();
+}
+
+// =============================================================================
 // タイルレイヤー管理（OpenStreetMap Access Blocked対応）
 // =============================================================================
 

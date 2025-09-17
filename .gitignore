@@ -1,5 +1,7 @@
 .claude/
 .env
 
-/venv/
-/misc/
+/log/*
+/node_modules/*
+/venv/*
+/misc/*
