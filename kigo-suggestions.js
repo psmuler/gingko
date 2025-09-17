@@ -215,7 +215,7 @@ function validateHaikuForKigo(haikuText) {
         return {
             isValid: false,
             reason: 'too_short',
-            message: `${PERFORMANCE_CONFIG.MIN_TEXT_LENGTH}文字以上入力してください`
+            message: '' // UIには表示しない（内部処理のみ）
         };
     }
 
@@ -379,11 +379,37 @@ function selectKigo(kigo, buttonElement) {
 }
 
 /**
- * 「季なし」選択処理
+ * 「季なし」選択処理（トグル対応）
  * @param {HTMLElement} buttonElement - クリックされたボタン要素
  */
 function selectSeasonless(buttonElement) {
-    // 既存の選択状態をクリア
+    // 既に選択されている場合はトグル（解除）
+    if (buttonElement.classList.contains('selected')) {
+        console.log('🎯 季なし選択解除');
+
+        // 選択を解除
+        buttonElement.classList.remove('selected');
+
+        // 選択状態をリセット
+        selectedKigoState = {
+            selectedKigo: null,
+            season: null,
+            isSeasonless: false
+        };
+
+        // フォームの季節フィールドをクリア
+        updateSeasonFields(null, '');
+
+        // カスタムイベントを発火
+        dispatchKigoSelectionEvent('kigo-deselected', {
+            kigo: null,
+            season: null,
+            isSeasonless: false
+        });
+        return;
+    }
+
+    // 他の選択状態をクリア
     clearKigoSelection();
 
     // 新しい選択状態を設定
@@ -564,8 +590,8 @@ function renderEmptyKigoSuggestions(containerId, message = '') {
     container.innerHTML = '';
     container.className = 'kigo-suggestions empty error';
 
-    // エラーメッセージを表示
-    if (message) {
+    // エラーメッセージを表示（メッセージが空の場合は表示しない）
+    if (message && message.trim()) {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'kigo-error-message';
         messageDiv.textContent = message;

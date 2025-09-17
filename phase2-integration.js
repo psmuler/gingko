@@ -171,14 +171,28 @@ function enhanceMobileSupport() {
         }
     }
 
-    // 画面サイズ変更時の対応
+    // 画面サイズ変更時の対応（強化版）
+    let resizeTimeout;
     window.addEventListener('resize', function() {
-        if (window.map) {
-            // 地図サイズの再計算
-            setTimeout(() => {
-                window.map.invalidateSize();
-            }, 100);
-        }
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            try {
+                if (window.map && window.map._container) {
+                    // 地図が存在し、DOMが有効な場合のみ実行
+                    window.map.invalidateSize();
+                    console.log('📐 地図サイズ再計算完了');
+                }
+
+                // インラインフォームの表示状態も調整
+                const inlineForm = document.getElementById('inline-form-container');
+                if (inlineForm && inlineForm.classList.contains('active')) {
+                    // フォームが表示中の場合、位置を再調整
+                    console.log('📐 インラインフォーム位置再調整');
+                }
+            } catch (error) {
+                console.warn('⚠️ リサイズ処理エラー:', error);
+            }
+        }, 150); // デバウンス時間を150msに延長
     });
 }
 

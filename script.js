@@ -310,8 +310,35 @@ function initializeMap() {
     // タイルレイヤーを追加（フォールバック機能付き）
     initializeTileLayer();
 
-    // マーカー用のレイヤーグループを作成
-    markersLayer = L.layerGroup().addTo(map);
+    // マーカー用のクラスターグループを作成
+    markersLayer = L.markerClusterGroup({
+        maxClusterRadius: 50, // クラスター化する最大半径
+        spiderfyOnMaxZoom: true, // 最大ズーム時にスパイダーファイ
+        showCoverageOnHover: false, // ホバー時のカバレッジ表示を無効
+        zoomToBoundsOnClick: true, // クリック時にズームイン
+        iconCreateFunction: function(cluster) {
+            const childCount = cluster.getChildCount();
+            let className = 'custom-cluster-icon';
+
+            if (childCount < 10) {
+                className += ' cluster-small';
+            } else if (childCount < 50) {
+                className += ' cluster-medium';
+            } else {
+                className += ' cluster-large';
+            }
+
+            return L.divIcon({
+                html: `
+                    <div class="cluster-main">
+                        <span class="cluster-count">${childCount}</span>
+                    </div>
+                `,
+                className: className,
+                iconSize: [40, 40]
+            });
+        }
+    }).addTo(map);
 
     console.log('地図の初期化が完了しました');
 }
@@ -352,9 +379,37 @@ async function loadHaikuData() {
     }
 }
 
+/**
+ * 歌枕の判定（キーワードベース）
+ * @param {string} text - テキスト
+ * @returns {Promise<boolean>} 歌枕が含まれているかどうか
+ */
+async function hasUtamakura(text) {
+    try {
+        // Supabaseクライアントから歌枕データを取得
+        const supabaseClientInstance = getSupabaseClient();
+        if (!supabaseClientInstance) return false;
+
+        const utamakuraData = await supabaseClientInstance.getUtamakura();
+        if (!utamakuraData || utamakuraData.length === 0) return false;
+
+        // テキストに歌枕が含まれているかチェック
+        return utamakuraData.some(utamakura => {
+            if (text.includes(utamakura.display_name)) return true;
+            if (utamakura.display_name_alternatives) {
+                return utamakura.display_name_alternatives.some(alt => text.includes(alt));
+            }
+            return false;
+        });
+    } catch (error) {
+        console.error('❌ 歌枕判定エラー:', error);
+        return false;
+    }
+}
+
 // APIデータから俳句マーカーを地図に追加
-function addHaikuMarkerFromAPI(haikuData) {
-    const { id, latitude, longitude, location_name, haiku_text, poet_name, location_type, description, season } = haikuData;
+async function addHaikuMarkerFromAPI(haikuData) {
+    const { id, latitude, longitude, location_name, haiku_text, poet_name, location_type, description, season, poetry_type } = haikuData;
     
     // 緯度経度の検証
     if (!latitude || !longitude || latitude === 0 || longitude === 0) {
@@ -362,22 +417,59 @@ function addHaikuMarkerFromAPI(haikuData) {
         return;
     }
 
-    // マーカーアイコンの色を場所種別に応じて設定
-    // 句季による色分け
-    const iconColor = MAP_CONFIG.MARKER_COLORS[season] || MAP_CONFIG.MARKER_COLORS['その他'];
+    // 短歌・歌枕の判定
+    const isTanka = poetry_type === '短歌';
+    const hasUtamakuraFlag = isTanka ? await hasUtamakura(haiku_text) : false;
 
-    // カスタムアイコンを作成（涙型デザイン）
-    const customIcon = L.divIcon({
-        className: `haiku-marker season-${season || 'other'}`,
-        html: `
+    let iconHtml, iconSize, iconAnchor, markerClassName;
+
+    if (isTanka && hasUtamakuraFlag) {
+        // 歌枕を含む短歌: 紫色のモダンな山のアイコン
+        iconHtml = `
+            <div class="existing-pin pin-appear">
+                <div class="pin-mountain utamakura">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#8e44ad">
+                        <path d="M12 2l-2 4-4 2 4 2 2 4 2-4 4-2-4-2-2-4z M8 12l-3 6h14l-3-6-4 2-4-2z"/>
+                    </svg>
+                </div>
+            </div>
+        `;
+        iconSize = [24, 30];
+        iconAnchor = [12, 30];
+        markerClassName = 'tanka utamakura';
+    } else if (isTanka) {
+        // 歌枕を含まない短歌: 灰色の通常の涙型アイコン
+        iconHtml = `
+            <div class="existing-pin pin-appear">
+                <div class="pin-teardrop tanka-no-utamakura" style="background-color: #95a5a6;">
+                    <div class="pin-dot"></div>
+                </div>
+            </div>
+        `;
+        iconSize = [24, 30];
+        iconAnchor = [12, 30];
+        markerClassName = 'tanka no-utamakura';
+    } else {
+        // 俳句: 既存の季節別色分け
+        const iconColor = MAP_CONFIG.MARKER_COLORS[season] || MAP_CONFIG.MARKER_COLORS['その他'];
+        iconHtml = `
             <div class="existing-pin pin-appear">
                 <div class="pin-teardrop ${season || 'その他'}" style="background-color: ${iconColor};">
                     <div class="pin-dot"></div>
                 </div>
             </div>
-        `,
-        iconSize: [24, 30],
-        iconAnchor: [12, 30]
+        `;
+        iconSize = [24, 30];
+        iconAnchor = [12, 30];
+        markerClassName = `haiku season-${season || 'other'}`;
+    }
+
+    // カスタムアイコンを作成
+    const customIcon = L.divIcon({
+        className: `poetry-marker ${markerClassName}`,
+        html: iconHtml,
+        iconSize: iconSize,
+        iconAnchor: iconAnchor
     });
 
     // マーカーを作成してレイヤーグループに追加
@@ -423,18 +515,19 @@ function addHaikuMarkerFromAPI(haikuData) {
 
 // 俳句ポップアップコンテンツを作成
 function createHaikuPopupContent(haiku) {
-    const { id, location_name, haiku_text, poet_name, location_type, description, season } = haiku;
-    
+    const { id, location_name, haiku_text, poet_name, location_type, description, season, preface } = haiku;
+
     return `
         <div class="haiku-popup" data-haiku-id="${id}">
+            ${preface ? `<div class="haiku-preface">${preface}</div>` : ''}
             <div class="popup-header">
-                <h3 class="location-name">${location_name || '場所不明'}</h3>
                 <span class="season-badge season-${season || 'other'}">${season || 'その他'}</span>
             </div>
             <div class="haiku-content">
                 <div class="haiku-text">${haiku_text}</div>
                 <div class="poet-name">― ${poet_name || '不明'} ―</div>
             </div>
+            ${location_name ? `<div class="location-info">${location_name}</div>` : ''}
             ${description ? `<div class="haiku-description">${description}</div>` : ''}
             <div class="popup-actions">
                 <button class="btn-detail" onclick="showHaikuDetail(${id})">詳細を見る</button>
