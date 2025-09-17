@@ -100,13 +100,102 @@ header {
     background-color: var(--primary-color);
     color: white;
     padding: var(--spacing-lg);
-    text-align: center;
     box-shadow: var(--shadow-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+}
+
+.header-content {
+    text-align: center;
+    flex: 1;
 }
 
 header h1 {
     font-size: var(--font-size-xxl);
     font-weight: 400;
+    margin: 0;
+}
+
+header p {
+    margin: 4px 0 0 0;
+    font-size: var(--font-size-sm);
+    opacity: 0.9;
+}
+
+/* ハンバーガーメニューボタン */
+.menu-toggle {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 30px;
+    height: 30px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1001;
+}
+
+.menu-toggle span {
+    width: 25px;
+    height: 3px;
+    background: white;
+    transition: all 0.3s ease;
+    transform-origin: center;
+}
+
+.menu-toggle.active span:nth-child(1) {
+    transform: rotate(45deg) translate(7px, 7px);
+}
+
+.menu-toggle.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.menu-toggle.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -7px);
+}
+
+/* ナビゲーションメニュー */
+.nav-menu {
+    position: fixed;
+    top: 0;
+    right: -250px;
+    width: 250px;
+    height: 100vh;
+    background: white;
+    box-shadow: var(--shadow-lg);
+    transition: right 0.3s ease;
+    z-index: 1000;
+    padding-top: 80px;
+}
+
+.nav-menu.active {
+    right: 0;
+}
+
+.nav-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-menu li {
+    border-bottom: 1px solid #eee;
+}
+
+.nav-menu a {
+    display: block;
+    padding: 15px 20px;
+    color: var(--text-color);
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+
+.nav-menu a:hover {
+    background-color: var(--background-light);
 }
 
 /* メインコンテンツ */

@@ -726,22 +726,8 @@ async function initializeKigoSuggestions() {
     }
 }
 
-// DOMContentLoadedイベントで自動初期化
-document.addEventListener('DOMContentLoaded', () => {
-    // アプリの他の初期化が完了するまで少し待つ
-    setTimeout(async () => {
-        try {
-            const initialized = await initializeKigoSuggestions();
-            if (initialized) {
-                console.log('🎉 季語サジェスト機能が正常に開始されました');
-            } else {
-                console.warn('⚠️ 季語サジェスト機能の初期化に失敗しましたが、アプリは継続動作します');
-            }
-        } catch (error) {
-            console.error('❌ 季語サジェスト機能の初期化で予期しないエラー:', error);
-        }
-    }, 2000); // 他のコンポーネントの初期化を待つため2秒に延長
-});
+// AppManagerが初期化を管理するため、自動初期化は削除
+// AppManagerの initializeKigoSuggestions() から呼び出される
 
 // =============================================================================
 // デバッグ用関数（グローバル公開）

@@ -14,9 +14,26 @@
 <body>
     <div id="app">
         <header>
-            <h1>吟行</h1>
-            <p>名句ゆかりの地を巡りましょう</p>
+            <div class="header-content">
+                <h1>吟行</h1>
+                <p>名句ゆかりの地を巡りましょう</p>
+            </div>
+            <button id="menu-toggle" class="menu-toggle" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
         </header>
+
+        <!-- ハンバーガーメニュー -->
+        <nav id="nav-menu" class="nav-menu">
+            <ul>
+                <li><a href="#" onclick="closeMenu()">地図</a></li>
+                <li><a href="#" onclick="showAbout()">このアプリについて</a></li>
+                <li><a href="#" onclick="showStats()">統計</a></li>
+                <li><a href="#" onclick="runKigoTest()">季語テスト</a></li>
+            </ul>
+        </nav>
         <main>
             <div id="map-container">
                 <div id="map"></div>
@@ -109,8 +126,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
-    <!-- JavaScript ファイル読み込み（正しい順序） -->
+    <!-- JavaScript ファイル読み込み（リファクタリング後の順序） -->
     <script src="config.js"></script>
+    <script src="utils.js"></script>
     <script src="supabase-client.js"></script>
     <script src="api-client.js"></script>
     <script src="api-adapter.js"></script>
@@ -118,7 +136,7 @@
     <script src="pin-posting.js"></script>
     <script src="seasonal-suggest.js"></script>
     <script src="script.js"></script>
-    <script src="phase2-integration.js"></script>
+    <script src="app-manager.js"></script>
 </body>
 
 </html>

@@ -23,27 +23,15 @@ const APP_STATE = {
 // アプリケーション初期化
 // =============================================================================
 
-document.addEventListener('DOMContentLoaded', initializeApp);
+// AppManagerが初期化を管理するため、ここでの自動初期化は削除
+// document.addEventListener('DOMContentLoaded', initializeApp);
 
 /**
- * アプリケーション初期化メイン関数
+ * アプリケーション初期化メイン関数（AppManagerから呼び出される）
+ * @deprecated AppManagerが初期化を管理するため、直接呼び出しは非推奨
  */
 async function initializeApp() {
-    try {
-        // 設定の検証
-        if (!validateConfig()) {
-            throw new Error('設定が不正です。config.jsを確認してください。');
-        }
-        
-        // APIアダプターの初期化
-        await apiAdapter.initialize();
-        console.log(`🔧 API初期化完了: ${apiAdapter.getAPIType()}`);
-        
-        await executeInitializationSequence();
-        console.log('✅ アプリケーションの初期化が完了しました');
-    } catch (error) {
-        handleInitializationError(error);
-    }
+    console.warn('⚠️ initializeApp() は非推奨です。AppManagerが初期化を管理しています。');
 }
 
 // =============================================================================

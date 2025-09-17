@@ -950,13 +950,5 @@ window.showDebugPinFromPinPosting = showDebugPin;
 // 初期化時の自動実行
 // =============================================================================
 
-// 地図初期化完了後にピン投稿システムを初期化
-document.addEventListener('DOMContentLoaded', () => {
-    // 地図初期化の完了を待つ
-    const checkMapInitialized = setInterval(() => {
-        if (window.map && window.map._leaflet_id) {
-            initializePinPosting();
-            clearInterval(checkMapInitialized);
-        }
-    }, 100);
-});
+// AppManagerが初期化を管理するため、自動初期化は削除
+// AppManagerの initializePinPosting() から呼び出される
