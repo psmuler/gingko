@@ -172,7 +172,7 @@ async function showAbout() {
                     <div class="about-footer">
                         <p><strong>開発情報</strong></p>
                         <p>このアプリはLeaflet.js（地図）、Supabase（データベース）を使用して開発されています。</p>
-                        <p><small>Ver 2.0 - 2024年開発</small></p>
+                        <p><small>Ver 2.3 - 2025年開発</small></p>
                         <p><em>※ about.htmlファイルの読み込みに失敗したため、フォールバック画面を表示しています。</em></p>
                     </div>
                 </div>

@@ -30,21 +30,20 @@
             <ul>
                 <li><a href="#" onclick="closeMenu()">地図</a></li>
                 <li><a href="#" onclick="showAbout()">このアプリについて</a></li>
-                <li><a href="#" onclick="showStats()">統計</a></li>
-                <li><a href="#" onclick="runKigoTest()">季語テスト</a></li>
+                <!-- <li><a href="#" onclick="showStats()">統計（開発予定なし）</a></li> -->
             </ul>
         </nav>
         <main>
             <div id="map-container">
                 <div id="map"></div>
                 <div id="map-controls">
-                    <button id="current-location-btn" class="map-control-btn gps-nav-btn" onclick="goToCurrentLocation()"
-                        title="現在地に移動">
+                    <button id="current-location-btn" class="map-control-btn gps-nav-btn"
+                        onclick="goToCurrentLocation()" title="現在地に移動">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <!-- Google Maps風の十字型ナビゲーションアイコン -->
-                            <path d="M10 1 L10 6 M10 14 L10 19 M1 10 L6 10 M14 10 L19 10"
-                                  stroke="white" stroke-width="2" stroke-linecap="round"/>
-                            <circle cx="10" cy="10" r="2.5" fill="white"/>
+                            <path d="M10 1 L10 6 M10 14 L10 19 M1 10 L6 10 M14 10 L19 10" stroke="white"
+                                stroke-width="2" stroke-linecap="round" />
+                            <circle cx="10" cy="10" r="2.5" fill="white" />
                         </svg>
                     </button>
                 </div>
