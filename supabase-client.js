@@ -567,3 +567,7 @@ function getSupabaseClient() {
     }
     return supabaseClient;
 }
+
+// ES Module対応のエクスポート
+export { SupabaseHaikuClient, getSupabaseClient };
+export default { SupabaseHaikuClient, getSupabaseClient };
