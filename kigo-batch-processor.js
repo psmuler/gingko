@@ -46,7 +46,7 @@ let processingStats = {
 };
 
 const DEFAULT_CONFIG = {
-    input: './misc/sample/haikus_sample.csv',
+    input: './misc/updater/shikus.csv',
     output: './output_with_kigo.csv',
     batchSize: 100,
     logLevel: 'info',
@@ -122,6 +122,7 @@ async function initializeKigoDatabase() {
         // データベースとキャッシュの構築
         kigoDatabaseInstance = {
             database: data.map(item => ({
+                id: item.id,  // 季語IDを追加
                 display_name: item.display_name,
                 display_name_alternatives: Array.isArray(item.display_name_alternatives)
                     ? item.display_name_alternatives
@@ -247,7 +248,8 @@ async function detectCSVFormat(inputPath) {
                     headers: headerList,
                     haikuColumn: detectHaikuColumn(headerList),
                     hasSeasonColumn: headerList.includes('season'),
-                    hasKigoColumn: headerList.includes('seasonal_term') || headerList.includes('keywords')
+                    hasKigoColumn: headerList.includes('seasonal_term') || headerList.includes('keywords'),
+                    hasKeywordIdColumn: headerList.includes('keyword_id')  // 季語IDカラムの検出を追加
                 });
             })
             .on('error', reject);
@@ -290,6 +292,9 @@ function createKigoProcessingTransform(config, formatInfo) {
                     if (!formatInfo.hasSeasonColumn) {
                         outputHeaders.push('season');
                     }
+                    if (!formatInfo.hasKeywordIdColumn) {
+                        outputHeaders.push('keyword_id');  // 季語IDカラムを追加
+                    }
 
                     this.push(outputHeaders.map(h => `"${h}"`).join(',') + '\n');
                     headerWritten = true;
@@ -300,7 +305,7 @@ function createKigoProcessingTransform(config, formatInfo) {
 
                 if (!haikuText) {
                     processingStats.errors++;
-                    this.push(convertRowToCSV(chunk, formatInfo.headers, '', '') + '\n');
+                    this.push(convertRowToCSV(chunk, formatInfo.headers, '', '', null) + '\n');
                     callback();
                     return;
                 }
@@ -310,12 +315,14 @@ function createKigoProcessingTransform(config, formatInfo) {
 
                 let seasonalTerm = '';
                 let season = '';
+                let keywordId = null;  // 季語IDを追加
 
                 if (kigoMatches.length > 0) {
                     // 最も優先度の高い季語を選択
                     const topMatch = kigoMatches[0];
                     seasonalTerm = topMatch.kigo.display_name;
                     season = topMatch.kigo.season;
+                    keywordId = topMatch.kigo.id;  // 季語IDを取得
 
                     processingStats.kigoDetected++;
                     processingStats.seasonBreakdown[season]++;
@@ -332,7 +339,7 @@ function createKigoProcessingTransform(config, formatInfo) {
                 }
 
                 // CSVに出力
-                const outputRow = convertRowToCSV(chunk, formatInfo.headers, seasonalTerm, season);
+                const outputRow = convertRowToCSV(chunk, formatInfo.headers, seasonalTerm, season, keywordId);
                 this.push(outputRow + '\n');
 
                 callback();
@@ -349,7 +356,7 @@ function createKigoProcessingTransform(config, formatInfo) {
 /**
  * オブジェクトをCSV行に変換
  */
-function convertRowToCSV(row, headers, seasonalTerm, season) {
+function convertRowToCSV(row, headers, seasonalTerm, season, keywordId = null) {
     const values = headers.map(header => {
         const value = row[header] || '';
         return `"${String(value).replace(/"/g, '""')}"`;
@@ -361,6 +368,9 @@ function convertRowToCSV(row, headers, seasonalTerm, season) {
     }
     if (!headers.includes('season')) {
         values.push(`"${season}"`);
+    }
+    if (!headers.includes('keyword_id')) {
+        values.push(`"${keywordId || ''}"`);  // 季語IDカラムを追加
     }
 
     return values.join(',');

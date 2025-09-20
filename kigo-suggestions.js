@@ -15,7 +15,8 @@ let isKigoDatabaseInitialized = false;
 let selectedKigoState = {
     selectedKigo: null,
     season: null,
-    isSeasonless: false
+    isSeasonless: false,
+    keywordId: null  // 季語IDを追加
 };
 
 // デバウンス用変数
@@ -61,6 +62,7 @@ async function initializeKigoDatabase() {
 
         // データ変換とキャッシュ構築
         kigoDatabase = data.map(item => ({
+            id: item.id,  // 季語IDを追加
             display_name: item.display_name,
             display_name_alternatives: Array.isArray(item.display_name_alternatives)
                 ? item.display_name_alternatives
@@ -68,15 +70,6 @@ async function initializeKigoDatabase() {
             season: item.season || 'その他',
             description: item.description || ''
         }));
-
-        // デバッグ: 冬木立が含まれているかチェック
-        const fuyukidachiItem = kigoDatabase.find(item => item.display_name === '冬木立');
-        if (fuyukidachiItem) {
-            console.log('🔍 冬木立が見つかりました:', fuyukidachiItem);
-        } else {
-            console.log('❌ 冬木立がデータベースに見つかりません');
-            console.log('📝 最初の10件のキーワード:', kigoDatabase.slice(0, 10).map(item => item.display_name));
-        }
 
         // 高速検索用キャッシュを構築
         buildKigoSearchCache();
@@ -290,6 +283,7 @@ function createKigoButton(kigo, matchedText) {
     button.style.setProperty('--season-color', seasonColor);
     button.dataset.season = kigo.season;
     button.dataset.kigoName = kigo.display_name;
+    button.dataset.keywordId = kigo.id;  // 季語IDを追加
     button.dataset.matchedText = matchedText;
 
     // クリックイベント
@@ -359,14 +353,15 @@ function selectKigo(kigo, buttonElement) {
     selectedKigoState = {
         selectedKigo: kigo,
         season: kigo.season,
-        isSeasonless: false
+        isSeasonless: false,
+        keywordId: kigo.id  // 季語IDを設定
     };
 
     // ボタンの選択状態を更新
     buttonElement.classList.add('selected');
 
     // フォームの季節フィールドを更新
-    updateSeasonFields(kigo.season, kigo.display_name);
+    updateSeasonFields(kigo.season, kigo.display_name, kigo.id);
 
     console.log(`🎯 季語選択: ${kigo.display_name} (${kigo.season})`);
 
@@ -394,11 +389,12 @@ function selectSeasonless(buttonElement) {
         selectedKigoState = {
             selectedKigo: null,
             season: null,
-            isSeasonless: false
+            isSeasonless: false,
+            keywordId: null
         };
 
         // フォームの季節フィールドをクリア
-        updateSeasonFields(null, '');
+        updateSeasonFields(null, '', null);
 
         // カスタムイベントを発火
         dispatchKigoSelectionEvent('kigo-deselected', {
@@ -416,14 +412,15 @@ function selectSeasonless(buttonElement) {
     selectedKigoState = {
         selectedKigo: null,
         season: null,
-        isSeasonless: true
+        isSeasonless: true,
+        keywordId: null
     };
 
     // ボタンの選択状態を更新
     buttonElement.classList.add('selected');
 
     // フォームの季節フィールドをクリア
-    updateSeasonFields(null, '');
+    updateSeasonFields(null, '', null);
 
     console.log('🎯 季なし選択');
 
@@ -448,7 +445,8 @@ function clearKigoSelection() {
     selectedKigoState = {
         selectedKigo: null,
         season: null,
-        isSeasonless: false
+        isSeasonless: false,
+        keywordId: null  // 季語IDもリセット
     };
 }
 
@@ -456,8 +454,9 @@ function clearKigoSelection() {
  * フォームの季節関連フィールドを更新
  * @param {string|null} season - 季節
  * @param {string} kigoName - 季語名
+ * @param {number|null} keywordId - 季語ID
  */
-function updateSeasonFields(season, kigoName) {
+function updateSeasonFields(season, kigoName, keywordId = null) {
     // 季節フィールドの更新
     const seasonField = document.querySelector('#inline-season, [name="season"]');
     if (seasonField) {
@@ -470,10 +469,21 @@ function updateSeasonFields(season, kigoName) {
         seasonalTermField.value = kigoName || '';
     }
 
+    // 季語IDフィールドの更新（新規追加）
+    const keywordIdField = document.querySelector('#inline-keyword-id, [name="keyword_id"]');
+    if (keywordIdField) {
+        keywordIdField.value = keywordId || '';
+    }
+
     // 隠しフィールドも更新（もしあれば）
     const hiddenSeasonField = document.querySelector('input[type="hidden"][name="season"]');
     if (hiddenSeasonField) {
         hiddenSeasonField.value = season || '';
+    }
+
+    const hiddenKeywordIdField = document.querySelector('input[type="hidden"][name="keyword_id"]');
+    if (hiddenKeywordIdField) {
+        hiddenKeywordIdField.value = keywordId || '';
     }
 }
 
@@ -734,7 +744,7 @@ async function initializeKigoSuggestions() {
 // =============================================================================
 
 // デバッグ用のテスト関数をグローバルに公開
-window.testKigoMatching = function(testText) {
+window.testKigoMatching = function (testText) {
     console.log(`\n🔍 季語マッチングテスト: "${testText}"`);
     console.log('データベース初期化状態:', isKigoDatabaseInitialized);
     console.log('データベースサイズ:', kigoDatabase.length);
@@ -746,13 +756,13 @@ window.testKigoMatching = function(testText) {
     return matches;
 };
 
-window.checkKigoInDatabase = function(kigoName) {
+window.checkKigoInDatabase = function (kigoName) {
     const found = kigoDatabase.find(item => item.display_name === kigoName);
     console.log(`"${kigoName}" の検索結果:`, found);
     return found;
 };
 
-window.checkKigoInCache = function(kigoName) {
+window.checkKigoInCache = function (kigoName) {
     const found = kigoCache.get(kigoName);
     console.log(`"${kigoName}" のキャッシュ結果:`, found);
     return found;
