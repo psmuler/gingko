@@ -407,6 +407,43 @@ function closeAbout() {
     closeModal();
 }
 
+/**
+ * リンク集画面を表示
+ */
+async function showFavLinks() {
+    closeMenu();
+
+    try {
+        const response = await fetch('./fav_links.html', {
+            method: 'GET',
+            cache: 'no-cache',
+            headers: {
+                'Content-Type': 'text/html'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const favLinksContent = await response.text();
+        showModal(favLinksContent);
+    } catch (error) {
+        console.error('リンク集画面の読み込みエラー:', error);
+        showModal(`
+            <div class="error-container">
+                <h2>エラー</h2>
+                <p>リンク集の読み込みに失敗しました。</p>
+                <button onclick="closeModal()" class="primary-btn">閉じる</button>
+            </div>
+        `);
+    }
+}
+
+function closeFavLinks() {
+    closeModal();
+}
+
 // =============================================================================
 // タイルレイヤー管理（OpenStreetMap Access Blocked対応）
 // =============================================================================
