@@ -5,6 +5,8 @@
 
 import { MAP_CONFIG } from './config.js';
 import { map } from './script.js';
+import { apiAdapter } from './api-adapter.js';
+import { attachKigoSuggestionToInput } from './kigo-suggestions.js';
 
 // =============================================================================
 // グローバル変数
@@ -27,8 +29,7 @@ let temporaryPinState = {
     isRemoving: false,
     timeout: null,
     location: null,
-    lastUpdate: 0,          // タイムスタンプ追加
-    creationId: null        // 作成ID追加（競合状態防止）
+    lastUpdate: 0           // タイムスタンプ追加
 };
 
 // 地図クリックのデバウンス用変数
@@ -267,9 +268,8 @@ async function checkExistingHaikusAtLocation(lat, lng, radius = 100) {
  */
 async function showTemporaryPin(lat, lng) {
     const currentTime = Date.now();
-    const creationId = currentTime; // 一意のID生成
 
-    console.log(`📍 一時的ピン表示開始: ${lat.toFixed(6)}, ${lng.toFixed(6)} [ID: ${creationId}]`);
+    console.log(`📍 一時的ピン表示開始: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
 
     // 入力値検証
     if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
@@ -300,7 +300,6 @@ async function showTemporaryPin(lat, lng) {
 
     // 排他制御フラグ設定
     temporaryPinState.isCreating = true;
-    temporaryPinState.creationId = creationId;
     temporaryPinState.lastUpdate = currentTime;
 
     try {
@@ -322,12 +321,6 @@ async function showTemporaryPin(lat, lng) {
         iconAnchor: [16, 40]
     });
 
-        // 作成ID確認（競合状態チェック）
-        if (temporaryPinState.creationId !== creationId) {
-            console.log('⚠️ 作成ID不一致、ピン作成を中止');
-            return;
-        }
-
         // 一時的ピンを作成
         temporaryPin = L.marker([lat, lng], {
             icon: tempPinIcon,
@@ -340,7 +333,7 @@ async function showTemporaryPin(lat, lng) {
         temporaryPinState.isCreating = false;
         temporaryPinState.lastUpdate = Date.now();
 
-        console.log(`📍 一時的ピン作成完了: [ID: ${creationId}]`, temporaryPin);
+        console.log('📍 一時的ピン作成完了', temporaryPin);
 
     // DOMに追加されるのを待ってからアニメーション開始
     setTimeout(() => {
@@ -374,12 +367,11 @@ async function showTemporaryPin(lat, lng) {
 
         temporaryPinState.timeout = temporaryPinTimeout;
 
-        console.log(`📍 一時的ピン表示完了: ${lat.toFixed(6)}, ${lng.toFixed(6)} [ID: ${creationId}]`);
+        console.log(`📍 一時的ピン表示完了: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
 
     } catch (error) {
         console.error('❌ 一時ピン作成エラー:', error);
         temporaryPinState.isCreating = false;
-        temporaryPinState.creationId = null;
         throw error;
     }
 }
@@ -572,7 +564,6 @@ function resetTemporaryPinState() {
         temporaryPinState.isCreating = false;
         temporaryPinState.location = null;
         temporaryPinState.lastUpdate = 0;
-        temporaryPinState.creationId = null;
 
         console.log('🔄 一時ピン状態リセット完了');
     } catch (error) {
