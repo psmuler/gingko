@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>俳句鑑賞＆記録アプリ</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/styles.css">
 
     <!-- Supabase JavaScript SDK -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -31,7 +31,6 @@
                 <li><a href="#" onclick="closeMenu()">地図</a></li>
                 <li><a href="#" onclick="showAbout()">このアプリについて</a></li>
                 <li><a href="#" onclick="showFavLinks()">リンク集</a></li>
-                <!-- <li><a href="#" onclick="showStats()">統計（開発予定なし）</a></li> -->
             </ul>
         </nav>
         <main>
@@ -126,17 +125,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
-    <!-- JavaScript ファイル読み込み（リファクタリング後の順序） -->
-    <script src="config.js"></script>
-    <script src="utils.js"></script>
-    <script src="supabase-client.js"></script>
-    <script src="api-client.js"></script>
-    <script src="api-adapter.js"></script>
-    <script src="kigo-suggestions.js"></script>
-    <script src="pin-posting.js"></script>
-    <script src="seasonal-suggest.js"></script>
-    <script src="script.js"></script>
-    <script src="app-manager.js"></script>
+    <!-- ES Module対応JavaScript読み込み -->
+    <script type="module" src="js/main.js"></script>
 </body>
 
 </html>

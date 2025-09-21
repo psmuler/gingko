@@ -3,6 +3,8 @@
  * config.jsのAPP_CONFIG.USE_SUPABASEフラグに基づいてAPI呼び出しを切り替え
  */
 
+import { APP_CONFIG, validateConfig } from './config.js';
+
 class APIAdapter {
     constructor() {
         this.client = null;
@@ -367,3 +369,6 @@ class APIAdapter {
 
 // APIアダプターのグローバルインスタンス
 const apiAdapter = new APIAdapter();
+
+// ES Module export
+export { apiAdapter, APIAdapter };

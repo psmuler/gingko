@@ -3,6 +3,17 @@
  * 全体の初期化順序と依存関係を管理
  */
 
+import { MAP_CONFIG, UI_CONFIG } from './config.js';
+import { apiAdapter } from './api-adapter.js';
+import {
+    initializeMapWithLocation,
+    initializeMap,
+    loadHaikuData,
+    showErrorMessage
+} from './script.js';
+import { initializeKigoSuggestions } from './kigo-suggestions.js';
+import { initializePinPosting } from './pin-posting.js';
+
 class AppManager {
     constructor() {
         this.isInitialized = false;
@@ -49,8 +60,8 @@ class AppManager {
             { name: '地図初期化', action: this.initializeMap.bind(this) },
             { name: 'データ管理初期化', action: this.initializeDataManager.bind(this) },
             { name: 'UI管理初期化', action: this.initializeUIManager.bind(this) },
-            { name: '季語サジェスト初期化', action: this.initializeKigoSuggestions.bind(this) },
-            { name: 'ピン投稿システム初期化', action: this.initializePinPosting.bind(this) },
+            { name: '季語サジェスト初期化', action: this.initializeKigoSuggestionsModule.bind(this) },
+            { name: 'ピン投稿システム初期化', action: this.initializePinPostingModule.bind(this) },
             { name: 'データ読み込み', action: this.loadInitialData.bind(this) }
         ];
 
@@ -80,7 +91,7 @@ class AppManager {
      * APIアダプターの初期化
      */
     async initializeAPIAdapter() {
-        if (typeof apiAdapter !== 'undefined' && apiAdapter.initialize) {
+        if (apiAdapter && typeof apiAdapter.initialize === 'function') {
             await apiAdapter.initialize();
             this.managers.api = apiAdapter;
             console.log('✅ APIアダプター初期化完了');
@@ -93,13 +104,9 @@ class AppManager {
      * 地図初期化
      */
     async initializeMap() {
-        // 既存の地図初期化関数を使用
-        if (typeof initializeMapWithLocation === 'function') {
-            await initializeMapWithLocation();
-            console.log('✅ 地図初期化完了');
-        } else {
-            throw new Error('地図初期化関数が見つかりません');
-        }
+        // ES Module importにより直接呼び出し可能
+        await initializeMapWithLocation();
+        console.log('✅ 地図初期化完了');
     }
 
     /**
@@ -122,40 +129,31 @@ class AppManager {
     /**
      * 季語サジェスト初期化
      */
-    async initializeKigoSuggestions() {
-        if (typeof initializeKigoSuggestions === 'function') {
-            await initializeKigoSuggestions();
-            console.log('✅ 季語サジェスト初期化完了');
-        } else {
-            console.warn('⚠️ 季語サジェスト機能が見つかりません');
-        }
+    async initializeKigoSuggestionsModule() {
+        await initializeKigoSuggestions();
+        console.log('✅ 季語サジェスト初期化完了');
     }
 
     /**
      * ピン投稿システム初期化
      */
-    async initializePinPosting() {
-        if (typeof initializePinPosting === 'function') {
-            // 少し待ってから初期化（地図の完全な初期化を待つ）
+    async initializePinPostingModule() {
+        // 少し待ってから初期化（地図の完全な初期化を待つ）
+        await new Promise(resolve => {
             setTimeout(() => {
                 initializePinPosting();
                 console.log('✅ ピン投稿システム初期化完了');
+                resolve();
             }, 500);
-        } else {
-            console.warn('⚠️ ピン投稿システムが見つかりません');
-        }
+        });
     }
 
     /**
      * 初期データ読み込み
      */
     async loadInitialData() {
-        if (typeof loadHaikuData === 'function') {
-            await loadHaikuData();
-            console.log('✅ 初期データ読み込み完了');
-        } else {
-            throw new Error('データ読み込み関数が見つかりません');
-        }
+        await loadHaikuData();
+        console.log('✅ 初期データ読み込み完了');
     }
 
     /**
@@ -214,9 +212,7 @@ class AppManager {
         }
 
         // 運用中のエラーの場合
-        if (typeof showErrorMessage === 'function') {
-            showErrorMessage('アプリケーションでエラーが発生しました');
-        }
+        showErrorMessage('アプリケーションでエラーが発生しました');
     }
 
     /**
@@ -243,9 +239,7 @@ class AppManager {
         const initTime = Date.now() - this.initializationStartTime;
         console.error(`❌ AppManager: 初期化失敗 (${initTime}ms)`, error);
 
-        if (typeof showErrorMessage === 'function') {
-            showErrorMessage(`初期化に失敗しました: ${error.message}`);
-        }
+        showErrorMessage(`初期化に失敗しました: ${error.message}`);
 
         // フォールバック: 最低限の機能で動作継続
         this.enableFallbackMode();
@@ -258,13 +252,11 @@ class AppManager {
         console.warn('⚠️ フォールバックモードで動作します');
 
         // 最低限の地図初期化
-        if (typeof initializeMap === 'function') {
-            try {
-                initializeMap();
-                console.log('✅ フォールバック: 基本地図初期化完了');
-            } catch (error) {
-                console.error('❌ フォールバック: 地図初期化も失敗', error);
-            }
+        try {
+            initializeMap();
+            console.log('✅ フォールバック: 基本地図初期化完了');
+        } catch (error) {
+            console.error('❌ フォールバック: 地図初期化も失敗', error);
         }
     }
 

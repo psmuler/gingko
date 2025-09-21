@@ -3,6 +3,8 @@
  * リファクタリング版 - 重複コード削除と可読性向上
  */
 
+import { API_CONFIG } from './config.js';
+
 class HaikuAPIClient {
     constructor() {
         this.baseUrl = API_CONFIG.BASE_URL;

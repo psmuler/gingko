@@ -141,3 +141,6 @@ function validateConfig() {
     }
     return true;
 }
+
+// ES Module exports（他のモジュールからimport可能にする）
+export { API_CONFIG, MAP_CONFIG, SUPABASE_CONFIG, APP_CONFIG, UI_CONFIG, validateConfig };

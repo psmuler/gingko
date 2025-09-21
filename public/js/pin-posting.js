@@ -3,6 +3,9 @@
  * Phase 2.1: 地図中心のピン投稿システム
  */
 
+import { MAP_CONFIG } from './config.js';
+import { map } from './script.js';
+
 // =============================================================================
 // グローバル変数
 // =============================================================================
@@ -78,7 +81,16 @@ function initializePinPosting() {
  * 地図クリックハンドラーの設定
  */
 function setupMapClickHandler() {
+    if (!map) {
+        console.error('❌ pin-posting: map変数が未初期化です');
+        return;
+    }
+    if (typeof map.on !== 'function') {
+        console.error('❌ pin-posting: mapオブジェクトが無効です', map);
+        return;
+    }
     map.on('click', handleMapClick);
+    console.log('✅ pin-posting: 地図クリックハンドラー設定完了');
 }
 
 /**
@@ -1304,10 +1316,25 @@ function showDebugPin(lat, lng) {
 // グローバル関数の公開
 // =============================================================================
 
-// Phase2統合のために必要な関数をグローバルに公開
-window.showTemporaryPinFromPinPosting = showTemporaryPin;
-window.removeTemporaryPinFromPinPosting = removeTemporaryPin;
-window.showDebugPinFromPinPosting = showDebugPin;
+// ES Module対応 - HTMLのonclick属性から呼ばれる関数をwindowオブジェクトに公開
+if (typeof window !== 'undefined') {
+    window.hideInlineForm = hideInlineForm;
+    window.addNewHaikuAtLocation = addNewHaikuAtLocation;
+    window.showAllHaikusAtLocation = showAllHaikusAtLocation;
+    window.handleInlineSubmit = handleInlineSubmit;
+
+    // Phase2統合のために必要な関数をグローバルに公開
+    window.showTemporaryPinFromPinPosting = showTemporaryPin;
+    window.removeTemporaryPinFromPinPosting = removeTemporaryPin;
+    window.showDebugPinFromPinPosting = showDebugPin;
+
+    console.log('✅ pin-posting.js グローバル関数をwindowに公開');
+}
+
+// ES Module exports (app-manager.jsから使用される関数)
+export {
+    initializePinPosting
+};
 
 // =============================================================================
 // 初期化時の自動実行

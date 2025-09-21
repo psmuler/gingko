@@ -3,6 +3,8 @@
  * スプレッドシートからSupabaseへの移行版
  */
 
+import { SUPABASE_CONFIG } from './config.js';
+
 class SupabaseHaikuClient {
     constructor() {
         // Supabase設定を確認

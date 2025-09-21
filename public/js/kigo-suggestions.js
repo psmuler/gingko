@@ -768,7 +768,17 @@ window.checkKigoInCache = function (kigoName) {
     return found;
 };
 
-// エクスポート（モジュール対応）
+// ES Module exports
+export {
+    initializeKigoSuggestions,
+    extractKigo,
+    attachKigoSuggestionToInput,
+    getCurrentKigoSelection,
+    resetKigoSelection,
+    getKigoDatabaseStats
+};
+
+// CommonJSエクスポート（後方互換性）
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         initializeKigoSuggestions,
