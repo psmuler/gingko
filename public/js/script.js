@@ -1497,5 +1497,6 @@ export {
     initializeMap,
     loadHaikuData,
     showErrorMessage,
+    showSuccessMessage,
     map
 };

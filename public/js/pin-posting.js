@@ -4,9 +4,9 @@
  */
 
 import { MAP_CONFIG } from './config.js';
-import { map } from './script.js';
+import { map, showErrorMessage, showSuccessMessage, loadHaikuData } from './script.js';
 import { apiAdapter } from './api-adapter.js';
-import { attachKigoSuggestionToInput } from './kigo-suggestions.js';
+import { attachKigoSuggestionToInput, getCurrentKigoSelection } from './kigo-suggestions.js';
 
 // =============================================================================
 // グローバル変数
@@ -49,6 +49,9 @@ let formState = {
     inputData: {},              // 入力データのバックアップ
     autoSaveInterval: null      // 自動保存タイマー
 };
+
+// 俳句投稿状態管理
+let isSubmittingHaiku = false;  // 俳句投稿中フラグ（重複防止）
 
 // =============================================================================
 // ピン投稿システム初期化
