@@ -17,14 +17,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 静的ファイル配信
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'docs')));
 
 // JSONパースミドルウェア
 app.use(express.json());
 
 // ルートディレクトリでindex.htmlを配信
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'docs', 'index.html'));
 });
 
 // ヘルスチェック
@@ -42,7 +42,7 @@ app.listen(PORT, () => {
     console.log('🚀 俳句鑑賞アプリサーバー起動');
     console.log(`📍 URL: http://localhost:${PORT}`);
     console.log(`🔧 環境: Node.js ES Module`);
-    console.log(`📁 静的ファイル: ${path.join(__dirname, 'public')}`);
+    console.log(`📁 静的ファイル: ${path.join(__dirname, 'docs')}`);
 });
 
 // 優雅なシャットダウン
