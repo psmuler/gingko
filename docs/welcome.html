@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ようこそ - 吟行</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        }
+        .welcome-content {
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        .welcome-content h1 {
+            font-size: 3rem;
+            color: white;
+            margin-bottom: 20px;
+            font-weight: 400;
+            letter-spacing: 0.1em;
+        }
+        .welcome-subtitle {
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 40px;
+        }
+        .welcome-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .welcome-btn {
+            padding: 20px 40px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            font-weight: 500;
+        }
+        @media (max-width: 768px) {
+            .welcome-content h1 {
+                font-size: 2rem;
+            }
+            .welcome-subtitle {
+                font-size: 1.2rem;
+            }
+            .welcome-btn {
+                padding: 15px 30px;
+                font-size: 1rem;
+            }
+        }
+        @media (max-width: 480px) {
+            .welcome-content h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <!-- Welcome Screen -->
+        <div class="fullscreen-center">
+            <div class="welcome-content">
+                <h1>吟行</h1>
+                <p class="welcome-subtitle">俳句は、</p>
+                <div class="welcome-buttons">
+                    <button class="primary-btn welcome-btn" onclick="handleExperienced()">
+                        普段から詠んでる
+                    </button>
+                    <button class="secondary-btn welcome-btn" onclick="handleBeginner()" style="background: var(--newyear-color); color: var(--winter-color); border: none;">
+                        初めて！
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { markVisited } from './js/kigo-gatcha-logic.js';
+
+        // Handle "experienced" user
+        window.handleExperienced = function() {
+            markVisited();
+            window.location.href = 'home.html';
+        };
+
+        // Handle "beginner" user
+        window.handleBeginner = function() {
+            markVisited();
+            window.location.href = 'kigo-gatcha.html?showExplanation=true';
+        };
+    </script>
+</body>
+
+</html>

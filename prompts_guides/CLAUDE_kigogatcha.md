@@ -154,42 +154,65 @@ const kigoData = {
 
 ## ✅ 実装チェックリスト
 - [x] 季語データ配列の準備（約1,200件） - `docs/js/kigo-gatcha.js`
-- [x] ウェルカム画面の実装 - `docs/kigo-gatcha.html`
+- [x] ウェルカム画面の実装 - `docs/welcome.html`
 - [x] 季語ガチャ画面の実装 - `docs/kigo-gatcha.html`
 - [x] 季節判定ロジック - `docs/js/kigo-gatcha-logic.js`
 - [x] 重複回避ロジック - `docs/js/kigo-gatcha-logic.js`
-- [x] ハンバーガーメニューへの追加 - `docs/index.html`
-- [ ] 俳句入力画面との連携 - URLパラメータ渡しは実装済み、入力フォームへの自動入力は未実装
-- [ ] 投稿機能との連携 - 既存の投稿機能を利用（追加実装不要）
-- [ ] 位置情報フォールバック処理 - 既存機能を利用（追加実装不要）
-- [x] レスポンシブデザイン対応 - `docs/css/kigo-gatcha.css`
+- [x] ハンバーガーメニューへの追加 - `docs/home.html`
+- [x] 俳句入力画面との連携 - `docs/haiku-compose.html`で実装完了
+- [x] 投稿機能との連携 - `apiAdapter.createHaiku()`を使用
+- [x] 位置情報フォールバック処理 - デフォルト位置（東京都千代田区）実装済み
+- [x] レスポンシブデザイン対応 - `docs/css/styles.css`で統一
 - [x] localStorage実装 - 初回訪問判定、使用済み季語管理
-- [x] styles.cssとの色統一 - 季節別カラー適用済み
+- [x] styles.cssとの色統一 - 既存コンポーネント再利用で統一
 
 ---
 
 ## 📦 実装ファイル一覧
 
 ### 新規作成ファイル
-- `docs/kigo-gatcha.html` - メインHTML（ウェルカム画面 + ガチャ画面）
-- `docs/css/kigo-gatcha.css` - ガチャ専用CSS
+- `docs/index.html` - ルーティングハブ（初回訪問判定、リダイレクト）
+- `docs/welcome.html` - ウェルカム画面（初回訪問時のみ表示）
+- `docs/kigo-gatcha.html` - 季語ガチャ画面
+- `docs/haiku-compose.html` - 俳句作成画面（季語サジェスト機能付き）
 - `docs/js/kigo-gatcha.js` - 季語辞書データ（約1,200件）
 - `docs/js/kigo-gatcha-logic.js` - ガチャロジック（季節判定、重複回避など）
 
 ### 変更ファイル
-- `docs/index.html` - ハンバーガーメニューに「🎲 季語ガチャ」追加
+- `docs/home.html` - 元の`index.html`をリネーム、ハンバーガーメニューに「🎲 季語ガチャ」追加
+- `docs/css/styles.css` - 最小限の汎用スタイル追加（`.fullscreen-center`, `.gatcha-btn`など）
+
+### アーキテクチャ改善
+- **URL構造の整理**:
+  - `/` (index.html) - ルーティングハブ
+  - `/home.html` - 地図画面
+  - `/welcome.html` - ウェルカム画面
+  - `/kigo-gatcha.html` - 季語ガチャ
+  - `/haiku-compose.html` - 俳句作成
+
+- **CSS統一**:
+  - 専用CSS (`kigo-gatcha.css`) を削除
+  - 既存の `styles.css` のコンポーネント (`.primary-btn`, `.secondary-btn`, `.modal-content`, `.form-group`など) を再利用
+  - 最小限の専用スタイルのみ追加
 
 ---
 
-## 🔗 俳句入力画面との連携（残タスク）
+## 🔗 俳句入力画面との連携
 
-### 現状
+### 実装済み
 「次へ」ボタンで以下のURLに遷移:
 ```
-index.html?mode=compose&kigo=[選ばれた季語]
+haiku-compose.html?kigo=[選ばれた季語]&season=[季節]&seasonJa=[季節(日本語)]
 ```
 
-また、sessionStorageに季語データを保存:
+`haiku-compose.html`で実装済みの機能:
+- URLパラメータから季語情報を取得して表示
+- 季語サジェスト機能の統合
+- 現在地取得（失敗時は東京都千代田区をデフォルト）
+- `apiAdapter.createHaiku()`を使用した投稿処理
+- 詩人名の検索と自動マッチング
+
+### sessionStorage連携
 ```javascript
 sessionStorage.setItem('selectedKigo', JSON.stringify({
     kigo: "桜",
@@ -198,25 +221,17 @@ sessionStorage.setItem('selectedKigo', JSON.stringify({
 }));
 ```
 
-### 必要な追加実装
-`docs/js/main.js` または俳句投稿処理に以下を追加:
-
-```javascript
-// URLパラメータから季語を取得
-const urlParams = new URLSearchParams(window.location.search);
-const selectedKigo = urlParams.get('kigo');
-const mode = urlParams.get('mode');
-
-if (mode === 'compose' && selectedKigo) {
-    // 俳句入力フォームを開く
-    // 季語を自動入力または季語サジェスト機能と連携
-}
-```
-
 ---
 
 **作成日**: 2025年10月9日
-**実装日**: 2025年10月9日
-**バージョン**: 1.0
-**ステータス**: 基本機能完成（俳句入力との連携のみ残タスク）
+**実装日**: 2025年10月10日
+**バージョン**: 2.0
+**ステータス**: 全機能完成（CSS統一リファクタリング完了）
 **対象アプリ**: 俳句投稿アプリ
+
+## 更新履歴
+- **2025-10-10**: CSS統一リファクタリング完了
+  - `kigo-gatcha.css`削除、既存コンポーネント再利用
+  - URL構造整理（ルーティングハブ追加）
+  - 俳句作成画面実装完了
+  - 全機能統合テスト完了

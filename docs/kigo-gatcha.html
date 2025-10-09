@@ -6,77 +6,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>季語ガチャ - 俳句鑑賞＆記録アプリ</title>
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/kigo-gatcha.css">
 </head>
 
 <body>
     <div id="app">
-        <!-- Welcome Screen (初回訪問時のみ) -->
-        <div id="welcome-screen" class="welcome-screen" style="display: none;">
-            <div class="welcome-content">
-                <h1>吟行</h1>
-                <p class="welcome-subtitle">俳句は、</p>
-                <div class="welcome-buttons">
-                    <button class="welcome-btn experienced-btn" onclick="handleExperienced()">
-                        普段から詠んでる
+        <!-- Header -->
+        <header>
+            <div class="header-content">
+                <p id="season-display">今は<span id="current-season"></span>の季節</p>
+            </div>
+            <button class="menu-toggle" onclick="goToTop()" style="width: 40px; height: 40px; background: transparent; border: none; color: white; font-size: 2rem; cursor: pointer; border-radius: 50%; transition: background 0.2s;">
+                ×
+            </button>
+        </header>
+
+        <!-- Main Content -->
+        <main style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; background: var(--secondary-color);">
+            <!-- Explanation Card -->
+            <div id="explanation-card" class="modal-content" style="max-width: 600px; width: 100%; padding: 30px; text-align: center;">
+                <small>俳句は5・7・5の17音からなる、世界で最も短い文学です。「季語」は季節を表す言葉で、それがあるだけでグッとイメージが伝わりやすくなる、便利な言葉です。</small>
+                <p style="margin-top: 15px;">まずは季語を一つ選び、それを使って俳句を詠んでみましょう</p>
+
+                <!-- Gatcha Button -->
+                <div id="gatcha-button-area" style="text-align: center; margin: 30px 0;">
+                    <button id="gatcha-btn" class="gatcha-btn" onclick="performGatcha()">
+                        季語ガチャ
                     </button>
-                    <button class="welcome-btn beginner-btn" onclick="handleBeginner()">
-                        初めて！
-                    </button>
+                </div>
+
+                <div class="text-left-list">
+                    <p style="text-align: center;"><b>詠み方は簡単！</b></p>
+                    <ol>
+                        <li>メモを取るための紙を用意します。</li>
+                        <li>ガチャで引いた季語を、はじめの五文字（上五）か、最後の五文字（下五）に入れます。</li>
+                        <li>次に、季語を入れなかった方の五文字に、季語とはできるだけかけ離れた言葉を考えます。</li>
+                        <li>真ん中の七文字（中七）は、できるだけ上下二つの言葉が繋がるような言葉を考えます。</li>
+                        <li>完成！</li>
+                    </ol>
+                    <small>よく知らない言葉が出てきたら、調べてみましょう。お店に並んでるものなら外に買いに行くのもおすすめです。</small><br>
+                    <small>季語が4音の時は、全部入れ終わってから、最後に「は」「が」「を」とか「に」などをつけると5音です。「や」とかでもいいです。</small>
                 </div>
             </div>
-        </div>
 
-        <!-- Kigo Gatcha Screen -->
-        <div id="gatcha-screen" class="gatcha-screen" style="display: none;">
-            <header>
-                <div class="header-content">
-                    <h1>季語ガチャ</h1>
-                    <p id="season-display">今は<span id="current-season"></span>の季節</p>
+            <!-- Result Card -->
+            <div id="result-card" class="modal-content" style="max-width: 600px; width: 100%; padding: 60px 40px; text-align: center; display: none;">
+                <p style="font-size: 1rem; color: var(--text-light); margin-bottom: 20px; letter-spacing: 0.1em;">季語</p>
+                <h2 id="kigo-text" class="kigo-display-text">
+                    <span id="kigo-text-content"></span>
+                    <a id="kigo-search-link" href="#" target="_blank" rel="noopener noreferrer" class="kigo-search-icon" title="Googleで検索">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </a>
+                </h2>
+                <p style="font-size: 1.2rem; color: var(--text-light); margin-top: 20px;">(<span id="kigo-season"></span>)</p>
+
+                <div class="form-actions" style="margin-top: 40px;">
+                    <button class="secondary-btn" onclick="rollAgain()">やり直す</button>
+                    <button class="primary-btn" onclick="proceedToHaikuInput()">次へ</button>
                 </div>
-                <button class="back-btn" onclick="goToTop()">×</button>
-            </header>
+            </div>
 
-            <main class="gatcha-main">
-                <!-- Beginner Explanation (初回のみ) -->
-                <div id="beginner-explanation" class="beginner-explanation" style="display: none;">
-                    <p>俳句には「季語」という季節を表す言葉が使われます。</p>
-                    <p>まずは季語を一つ選んで、それを使って俳句を詠んでみましょう！</p>
-                </div>
-
-                <!-- Gatcha Result Area -->
-                <div id="gatcha-result" class="gatcha-result" style="display: none;">
-                    <div class="kigo-display">
-                        <p class="kigo-label">季語</p>
-                        <h2 id="kigo-text" class="kigo-text"></h2>
-                        <p class="season-label">(<span id="kigo-season"></span>)</p>
-                    </div>
-
-                    <div class="gatcha-actions">
-                        <button class="action-btn secondary-btn" onclick="rollAgain()">
-                            やり直す
-                        </button>
-                        <button class="action-btn primary-btn" onclick="proceedToHaikuInput()">
-                            次へ
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Initial Gatcha Button -->
-                <div id="gatcha-button-area" class="gatcha-button-area">
-                    <button id="gatcha-btn" class="gatcha-btn" onclick="performGatcha()">
-                        🎲 季語ガチャ を引く
-                    </button>
-                    <p class="gatcha-hint">今の季節の季語がランダムで選ばれます</p>
-                </div>
-
-                <!-- All Used Message -->
-                <div id="all-used-message" class="all-used-message" style="display: none;">
-                    <p>すべての季語を使い切りました！</p>
-                    <button class="reset-btn" onclick="resetAndGatcha()">最初から</button>
-                </div>
-            </main>
-        </div>
+            <!-- All Used Message -->
+            <div id="all-used-card" class="modal-content" style="max-width: 400px; width: 100%; padding: 40px; text-align: center; display: none;">
+                <p style="font-size: 1.2rem; margin-bottom: 30px;">すべての季語を使い切りました！</p>
+                <button class="primary-btn" onclick="resetAndGatcha()">最初から</button>
+            </div>
+        </main>
     </div>
 
     <script type="module">
@@ -87,53 +85,15 @@
             getUsedKigo,
             addUsedKigo,
             resetUsedKigo,
-            isFirstVisit,
-            markVisited,
             getSeasonColor
         } from './js/kigo-gatcha-logic.js';
 
         let currentKigo = null;
 
-        // Initialize app
+        // Initialize
         function init() {
-            if (isFirstVisit()) {
-                showWelcomeScreen();
-            } else {
-                showGatchaScreen();
-            }
             updateSeasonDisplay();
         }
-
-        // Show welcome screen
-        function showWelcomeScreen() {
-            document.getElementById('welcome-screen').style.display = 'flex';
-            document.getElementById('gatcha-screen').style.display = 'none';
-        }
-
-        // Show gatcha screen
-        function showGatchaScreen() {
-            document.getElementById('welcome-screen').style.display = 'none';
-            document.getElementById('gatcha-screen').style.display = 'block';
-            document.getElementById('beginner-explanation').style.display = 'none';
-            document.getElementById('gatcha-result').style.display = 'none';
-            document.getElementById('gatcha-button-area').style.display = 'block';
-        }
-
-        // Handle "experienced" user
-        window.handleExperienced = function() {
-            markVisited();
-            window.location.href = 'index.html';
-        };
-
-        // Handle "beginner" user
-        window.handleBeginner = function() {
-            markVisited();
-            document.getElementById('welcome-screen').style.display = 'none';
-            document.getElementById('gatcha-screen').style.display = 'block';
-            document.getElementById('beginner-explanation').style.display = 'block';
-            document.getElementById('gatcha-result').style.display = 'none';
-            document.getElementById('gatcha-button-area').style.display = 'block';
-        };
 
         // Update season display
         function updateSeasonDisplay() {
@@ -149,19 +109,25 @@
             const gatchaBtn = document.getElementById('gatcha-btn');
             if (gatchaBtn) {
                 gatchaBtn.style.backgroundColor = getSeasonColor(season);
+                // Set text color to black for autumn (yellow background)
+                if (season === 'autumn') {
+                    gatchaBtn.style.color = '#000';
+                } else {
+                    gatchaBtn.style.color = '#fff';
+                }
             }
         }
 
         // Perform gatcha
-        window.performGatcha = function() {
+        window.performGatcha = function () {
             const usedKigo = getUsedKigo();
             const result = getRandomKigo(usedKigo);
 
             if (result === null) {
                 // All kigo used
-                document.getElementById('gatcha-button-area').style.display = 'none';
-                document.getElementById('gatcha-result').style.display = 'none';
-                document.getElementById('all-used-message').style.display = 'block';
+                document.getElementById('explanation-card').style.display = 'none';
+                document.getElementById('result-card').style.display = 'none';
+                document.getElementById('all-used-card').style.display = 'block';
                 return;
             }
 
@@ -169,40 +135,47 @@
             addUsedKigo(result.kigo);
 
             // Display result
-            document.getElementById('kigo-text').textContent = result.kigo;
+            document.getElementById('kigo-text-content').textContent = result.kigo;
             document.getElementById('kigo-season').textContent = result.seasonJa;
-            document.getElementById('beginner-explanation').style.display = 'none';
-            document.getElementById('gatcha-button-area').style.display = 'none';
-            document.getElementById('gatcha-result').style.display = 'block';
+
+            // Update Google search link
+            const searchLink = document.getElementById('kigo-search-link');
+            searchLink.href = 'https://www.google.com/search?q=' + encodeURIComponent(result.kigo);
+
+            // Show result card
+            document.getElementById('explanation-card').style.display = 'none';
+            document.getElementById('result-card').style.display = 'block';
         };
 
         // Roll again
-        window.rollAgain = function() {
-            document.getElementById('gatcha-result').style.display = 'none';
-            document.getElementById('gatcha-button-area').style.display = 'block';
+        window.rollAgain = function () {
+            document.getElementById('result-card').style.display = 'none';
+            document.getElementById('explanation-card').style.display = 'block';
             currentKigo = null;
         };
 
         // Reset and gatcha
-        window.resetAndGatcha = function() {
+        window.resetAndGatcha = function () {
             resetUsedKigo();
-            document.getElementById('all-used-message').style.display = 'none';
-            document.getElementById('gatcha-button-area').style.display = 'block';
+            document.getElementById('all-used-card').style.display = 'none';
+            document.getElementById('explanation-card').style.display = 'block';
         };
 
         // Proceed to haiku input
-        window.proceedToHaikuInput = function() {
+        window.proceedToHaikuInput = function () {
             if (currentKigo) {
                 // Store selected kigo in sessionStorage for haiku input screen
                 sessionStorage.setItem('selectedKigo', JSON.stringify(currentKigo));
-                // Navigate to haiku input (integration with existing app)
-                window.location.href = 'index.html?mode=compose&kigo=' + encodeURIComponent(currentKigo.kigo);
+                // Navigate to haiku compose page
+                window.location.href = 'haiku-compose.html?kigo=' + encodeURIComponent(currentKigo.kigo) +
+                    '&season=' + encodeURIComponent(currentKigo.season) +
+                    '&seasonJa=' + encodeURIComponent(currentKigo.seasonJa);
             }
         };
 
         // Go to top
-        window.goToTop = function() {
-            window.location.href = 'index.html';
+        window.goToTop = function () {
+            window.location.href = 'home.html';
         };
 
         // Initialize on load

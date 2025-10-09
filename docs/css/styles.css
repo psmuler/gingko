@@ -2114,3 +2114,108 @@ main {
         overflow-y: auto;
     }
 }
+
+/* =============================================================================
+   汎用レイアウト - 全画面中央配置
+   ============================================================================= */
+
+.fullscreen-center {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* =============================================================================
+   季語ガチャ - 最小限の専用スタイル
+   ============================================================================= */
+
+/* 季語ガチャボタン */
+.gatcha-btn {
+    width: 100%;
+    max-width: 400px;
+    padding: 25px 40px;
+    font-size: 1.3rem;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 600;
+    color: white;
+    box-shadow: var(--shadow-lg);
+    transition: all var(--transition-base);
+}
+
+.gatcha-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.gatcha-btn:active {
+    transform: translateY(-1px);
+}
+
+/* 季語表示 */
+.kigo-display-text {
+    font-size: 3rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.kigo-search-icon {
+    color: var(--primary-color);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.kigo-search-icon:hover {
+    background: rgba(102, 126, 234, 0.2);
+    transform: scale(1.1);
+}
+
+.kigo-search-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* リスト左揃え */
+.text-left-list ol {
+    text-align: left;
+    padding-left: 20px;
+    margin: 20px 0;
+}
+
+.text-left-list li {
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+    .kigo-display-text {
+        font-size: 2rem;
+    }
+
+    .gatcha-btn {
+        font-size: 1.1rem;
+        padding: 20px 30px;
+    }
+}
+
+@media (max-width: 480px) {
+    .kigo-display-text {
+        font-size: 1.8rem;
+    }
+}
