@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>季語ガチャ - 俳句鑑賞＆記録アプリ</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/kigo-gatcha.css">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Welcome Screen (初回訪問時のみ) -->
+        <div id="welcome-screen" class="welcome-screen" style="display: none;">
+            <div class="welcome-content">
+                <h1>吟行</h1>
+                <p class="welcome-subtitle">俳句は、</p>
+                <div class="welcome-buttons">
+                    <button class="welcome-btn experienced-btn" onclick="handleExperienced()">
+                        普段から詠んでる
+                    </button>
+                    <button class="welcome-btn beginner-btn" onclick="handleBeginner()">
+                        初めて！
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kigo Gatcha Screen -->
+        <div id="gatcha-screen" class="gatcha-screen" style="display: none;">
+            <header>
+                <div class="header-content">
+                    <h1>季語ガチャ</h1>
+                    <p id="season-display">今は<span id="current-season"></span>の季節</p>
+                </div>
+                <button class="back-btn" onclick="goToTop()">×</button>
+            </header>
+
+            <main class="gatcha-main">
+                <!-- Beginner Explanation (初回のみ) -->
+                <div id="beginner-explanation" class="beginner-explanation" style="display: none;">
+                    <p>俳句には「季語」という季節を表す言葉が使われます。</p>
+                    <p>まずは季語を一つ選んで、それを使って俳句を詠んでみましょう！</p>
+                </div>
+
+                <!-- Gatcha Result Area -->
+                <div id="gatcha-result" class="gatcha-result" style="display: none;">
+                    <div class="kigo-display">
+                        <p class="kigo-label">季語</p>
+                        <h2 id="kigo-text" class="kigo-text"></h2>
+                        <p class="season-label">(<span id="kigo-season"></span>)</p>
+                    </div>
+
+                    <div class="gatcha-actions">
+                        <button class="action-btn secondary-btn" onclick="rollAgain()">
+                            やり直す
+                        </button>
+                        <button class="action-btn primary-btn" onclick="proceedToHaikuInput()">
+                            次へ
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Initial Gatcha Button -->
+                <div id="gatcha-button-area" class="gatcha-button-area">
+                    <button id="gatcha-btn" class="gatcha-btn" onclick="performGatcha()">
+                        🎲 季語ガチャ を引く
+                    </button>
+                    <p class="gatcha-hint">今の季節の季語がランダムで選ばれます</p>
+                </div>
+
+                <!-- All Used Message -->
+                <div id="all-used-message" class="all-used-message" style="display: none;">
+                    <p>すべての季語を使い切りました！</p>
+                    <button class="reset-btn" onclick="resetAndGatcha()">最初から</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script type="module">
+        import {
+            getCurrentSeason,
+            getSeasonNameJa,
+            getRandomKigo,
+            getUsedKigo,
+            addUsedKigo,
+            resetUsedKigo,
+            isFirstVisit,
+            markVisited,
+            getSeasonColor
+        } from './js/kigo-gatcha-logic.js';
+
+        let currentKigo = null;
+
+        // Initialize app
+        function init() {
+            if (isFirstVisit()) {
+                showWelcomeScreen();
+            } else {
+                showGatchaScreen();
+            }
+            updateSeasonDisplay();
+        }
+
+        // Show welcome screen
+        function showWelcomeScreen() {
+            document.getElementById('welcome-screen').style.display = 'flex';
+            document.getElementById('gatcha-screen').style.display = 'none';
+        }
+
+        // Show gatcha screen
+        function showGatchaScreen() {
+            document.getElementById('welcome-screen').style.display = 'none';
+            document.getElementById('gatcha-screen').style.display = 'block';
+            document.getElementById('beginner-explanation').style.display = 'none';
+            document.getElementById('gatcha-result').style.display = 'none';
+            document.getElementById('gatcha-button-area').style.display = 'block';
+        }
+
+        // Handle "experienced" user
+        window.handleExperienced = function() {
+            markVisited();
+            window.location.href = 'index.html';
+        };
+
+        // Handle "beginner" user
+        window.handleBeginner = function() {
+            markVisited();
+            document.getElementById('welcome-screen').style.display = 'none';
+            document.getElementById('gatcha-screen').style.display = 'block';
+            document.getElementById('beginner-explanation').style.display = 'block';
+            document.getElementById('gatcha-result').style.display = 'none';
+            document.getElementById('gatcha-button-area').style.display = 'block';
+        };
+
+        // Update season display
+        function updateSeasonDisplay() {
+            const season = getCurrentSeason();
+            const seasonJa = getSeasonNameJa(season);
+            const seasonElement = document.getElementById('current-season');
+            if (seasonElement) {
+                seasonElement.textContent = seasonJa;
+                seasonElement.style.color = getSeasonColor(season);
+            }
+
+            // Update gatcha button color
+            const gatchaBtn = document.getElementById('gatcha-btn');
+            if (gatchaBtn) {
+                gatchaBtn.style.backgroundColor = getSeasonColor(season);
+            }
+        }
+
+        // Perform gatcha
+        window.performGatcha = function() {
+            const usedKigo = getUsedKigo();
+            const result = getRandomKigo(usedKigo);
+
+            if (result === null) {
+                // All kigo used
+                document.getElementById('gatcha-button-area').style.display = 'none';
+                document.getElementById('gatcha-result').style.display = 'none';
+                document.getElementById('all-used-message').style.display = 'block';
+                return;
+            }
+
+            currentKigo = result;
+            addUsedKigo(result.kigo);
+
+            // Display result
+            document.getElementById('kigo-text').textContent = result.kigo;
+            document.getElementById('kigo-season').textContent = result.seasonJa;
+            document.getElementById('beginner-explanation').style.display = 'none';
+            document.getElementById('gatcha-button-area').style.display = 'none';
+            document.getElementById('gatcha-result').style.display = 'block';
+        };
+
+        // Roll again
+        window.rollAgain = function() {
+            document.getElementById('gatcha-result').style.display = 'none';
+            document.getElementById('gatcha-button-area').style.display = 'block';
+            currentKigo = null;
+        };
+
+        // Reset and gatcha
+        window.resetAndGatcha = function() {
+            resetUsedKigo();
+            document.getElementById('all-used-message').style.display = 'none';
+            document.getElementById('gatcha-button-area').style.display = 'block';
+        };
+
+        // Proceed to haiku input
+        window.proceedToHaikuInput = function() {
+            if (currentKigo) {
+                // Store selected kigo in sessionStorage for haiku input screen
+                sessionStorage.setItem('selectedKigo', JSON.stringify(currentKigo));
+                // Navigate to haiku input (integration with existing app)
+                window.location.href = 'index.html?mode=compose&kigo=' + encodeURIComponent(currentKigo.kigo);
+            }
+        };
+
+        // Go to top
+        window.goToTop = function() {
+            window.location.href = 'index.html';
+        };
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+
+</html>

@@ -259,6 +259,8 @@ const UI_CONFIG = {
 ### ローカル開発
 
 ```bash
+cd docs
+
 # ローカルサーバーで開発する場合（Python）
 python -m http.server 8000
 

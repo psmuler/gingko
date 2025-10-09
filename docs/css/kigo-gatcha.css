@@ -1,0 +1,364 @@
+/**
+ * Kigo Gatcha Styles
+ * Seasonal word gacha feature for haiku beginners
+ */
+
+/* =============================================================================
+   Welcome Screen
+   ============================================================================= */
+
+.welcome-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+.welcome-content {
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+}
+
+.welcome-content h1 {
+    font-size: 3rem;
+    color: white;
+    margin-bottom: 20px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+}
+
+.welcome-subtitle {
+    font-size: 1.5rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 40px;
+}
+
+.welcome-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.welcome-btn {
+    padding: 20px 40px;
+    font-size: 1.2rem;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.experienced-btn {
+    background: white;
+    color: #667eea;
+}
+
+.experienced-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.beginner-btn {
+    background: #f1c40f;
+    color: #2c3e50;
+}
+
+.beginner-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    background: #f39c12;
+}
+
+/* =============================================================================
+   Gatcha Screen
+   ============================================================================= */
+
+.gatcha-screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #f8f9fa;
+}
+
+.gatcha-screen header {
+    background: var(--primary-color);
+    color: white;
+    padding: 20px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+}
+
+.back-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s ease;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#season-display {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+#current-season {
+    font-weight: 600;
+}
+
+.gatcha-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+}
+
+/* =============================================================================
+   Beginner Explanation
+   ============================================================================= */
+
+.beginner-explanation {
+    max-width: 600px;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 40px;
+    text-align: center;
+}
+
+.beginner-explanation p {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: var(--text-color);
+    margin-bottom: 15px;
+}
+
+.beginner-explanation p:last-child {
+    margin-bottom: 0;
+}
+
+/* =============================================================================
+   Gatcha Result
+   ============================================================================= */
+
+.gatcha-result {
+    max-width: 600px;
+    width: 100%;
+}
+
+.kigo-display {
+    background: white;
+    padding: 60px 40px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.kigo-label {
+    font-size: 1rem;
+    color: var(--text-light);
+    margin-bottom: 20px;
+    letter-spacing: 0.1em;
+}
+
+.kigo-text {
+    font-size: 3rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.season-label {
+    font-size: 1.2rem;
+    color: var(--text-light);
+    margin-top: 20px;
+}
+
+.gatcha-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.action-btn {
+    flex: 1;
+    max-width: 200px;
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.primary-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.primary-btn:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.secondary-btn {
+    background: var(--secondary-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.secondary-btn:hover {
+    background: var(--background-light);
+    transform: translateY(-2px);
+}
+
+/* =============================================================================
+   Gatcha Button Area
+   ============================================================================= */
+
+.gatcha-button-area {
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+}
+
+.gatcha-btn {
+    width: 100%;
+    padding: 25px 40px;
+    font-size: 1.3rem;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 600;
+    color: white;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    background: var(--primary-color);
+}
+
+.gatcha-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.gatcha-btn:active {
+    transform: translateY(-1px);
+}
+
+.gatcha-hint {
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+/* =============================================================================
+   All Used Message
+   ============================================================================= */
+
+.all-used-message {
+    text-align: center;
+    max-width: 400px;
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+}
+
+.all-used-message p {
+    font-size: 1.2rem;
+    color: var(--text-color);
+    margin-bottom: 30px;
+}
+
+.reset-btn {
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.reset-btn:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* =============================================================================
+   Responsive Design
+   ============================================================================= */
+
+@media (max-width: 768px) {
+    .welcome-content h1 {
+        font-size: 2rem;
+    }
+
+    .welcome-subtitle {
+        font-size: 1.2rem;
+    }
+
+    .welcome-btn {
+        padding: 15px 30px;
+        font-size: 1rem;
+    }
+
+    .kigo-text {
+        font-size: 2rem;
+    }
+
+    .gatcha-actions {
+        flex-direction: column;
+    }
+
+    .action-btn {
+        max-width: 100%;
+    }
+
+    .gatcha-btn {
+        font-size: 1.1rem;
+        padding: 20px 30px;
+    }
+}
+
+@media (max-width: 480px) {
+    .welcome-content h1 {
+        font-size: 1.5rem;
+    }
+
+    .kigo-display {
+        padding: 40px 20px;
+    }
+
+    .kigo-text {
+        font-size: 1.8rem;
+    }
+}
