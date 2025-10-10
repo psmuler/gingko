@@ -5,6 +5,8 @@
   "type": "module",
   "main": "api-adapter.js",
   "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "migrate-keywords": "node migrate-keywords.js",
     "migrate-keywords-clear": "node migrate-keywords.js --clear"
@@ -23,6 +25,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
     "csv-parser": "^3.2.0",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
   }
 }

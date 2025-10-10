@@ -3,6 +3,11 @@
  * Phase 2.1: 地図中心のピン投稿システム
  */
 
+import { MAP_CONFIG } from './config.js';
+import { map, showErrorMessage, showSuccessMessage, loadHaikuData } from './script.js';
+import { apiAdapter } from './api-adapter.js';
+import { attachKigoSuggestionToInput, getCurrentKigoSelection } from './kigo-suggestions.js';
+
 // =============================================================================
 // グローバル変数
 // =============================================================================
@@ -17,13 +22,14 @@ let touchStartTime = 0;
 let temporaryPin = null;
 let temporaryPinTimeout = null;
 
-// 一時ピンの状態管理
+// 一時ピンの状態管理（Phase 2 強化版）
 let temporaryPinState = {
     pin: null,
     isCreating: false,
     isRemoving: false,
     timeout: null,
-    location: null
+    location: null,
+    lastUpdate: 0           // タイムスタンプ追加
 };
 
 // 地図クリックのデバウンス用変数
@@ -34,6 +40,18 @@ let lastMapClickTime = 0;
 let haikuDataCache = [];
 let pinCacheLastUpdated = 0;
 const PIN_CACHE_REFRESH_INTERVAL = 60000; // 1分間キャッシュを保持
+
+// フォーム状態管理用変数（入力データ保護機能）
+let formState = {
+    isVisible: false,
+    hasUnsavedData: false,      // 未保存データの有無
+    lastInputTime: 0,           // 最終入力時刻
+    inputData: {},              // 入力データのバックアップ
+    autoSaveInterval: null      // 自動保存タイマー
+};
+
+// 俳句投稿状態管理
+let isSubmittingHaiku = false;  // 俳句投稿中フラグ（重複防止）
 
 // =============================================================================
 // ピン投稿システム初期化
@@ -67,7 +85,16 @@ function initializePinPosting() {
  * 地図クリックハンドラーの設定
  */
 function setupMapClickHandler() {
+    if (!map) {
+        console.error('❌ pin-posting: map変数が未初期化です');
+        return;
+    }
+    if (typeof map.on !== 'function') {
+        console.error('❌ pin-posting: mapオブジェクトが無効です', map);
+        return;
+    }
     map.on('click', handleMapClick);
+    console.log('✅ pin-posting: 地図クリックハンドラー設定完了');
 }
 
 /**
@@ -75,6 +102,18 @@ function setupMapClickHandler() {
  * @param {Object} e - Leafletクリックイベント
  */
 function handleMapClick(e) {
+    // 防御的チェック: イベントオブジェクトの検証
+    if (!e || !e.latlng || typeof e.latlng.lat !== 'number' || typeof e.latlng.lng !== 'number') {
+        console.error('❌ 無効な地図クリックイベント:', e);
+        console.error('📍 イベント詳細:', {
+            event: e,
+            latlng: e?.latlng,
+            latType: typeof e?.latlng?.lat,
+            lngType: typeof e?.latlng?.lng
+        });
+        return;
+    }
+
     const currentTime = Date.now();
     const { lat, lng } = e.latlng;
 
@@ -104,7 +143,16 @@ function handleMapClick(e) {
  * @param {number} lng - 経度
  */
 async function handleMapClickAsync(lat, lng) {
-    console.log(`📍 地図クリック処理開始: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+    try {
+        // 入力値の検証
+        if (typeof lat !== 'number' || typeof lng !== 'number' ||
+            isNaN(lat) || isNaN(lng) ||
+            Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+            console.error('❌ 無効な座標値:', { lat, lng });
+            return;
+        }
+
+        console.log(`📍 地図クリック処理開始: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
 
     // ポップアップが開いている場合は、ポップアップを閉じるだけで新規フォームは表示しない
     if (map && map._popup && map.hasLayer(map._popup) && map._popup.isOpen()) {
@@ -124,8 +172,8 @@ async function handleMapClickAsync(lat, lng) {
         hideInlineForm();
         removeTemporaryPin();
 
-        // 既存俳句表示
-        showExistingHaikuPopup(existingHaikus);
+        // 既存俳句表示（オプション付き）
+        showExistingHaikuPopupWithOptions(existingHaikus, lat, lng);
     } else {
         // 既存俳句がない場合のみ新規入力処理
         console.log(`📍 新規入力エリア: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
@@ -142,6 +190,18 @@ async function handleMapClickAsync(lat, lng) {
         } else {
             // 新句入力フォーム表示
             showInlineForm(lat, lng);
+        }
+    }
+    } catch (error) {
+        console.error('❌ 地図クリック処理エラー:', error);
+        console.error('📍 エラー詳細:', { lat, lng, error: error.message, stack: error.stack });
+
+        // エラー時のフォールバック処理
+        try {
+            hideInlineForm();
+            removeTemporaryPin();
+        } catch (fallbackError) {
+            console.error('❌ フォールバック処理も失敗:', fallbackError);
         }
     }
 }
@@ -204,24 +264,33 @@ async function checkExistingHaikusAtLocation(lat, lng, radius = 100) {
 // =============================================================================
 
 /**
- * 一時的なピンを表示（状態管理対応版）
+ * 一時的なピンを表示（状態管理対応版・競合状態解消）
  * @param {number} lat - 緯度
  * @param {number} lng - 経度
  * @returns {Promise} ピン表示完了のPromise
  */
 async function showTemporaryPin(lat, lng) {
+    const currentTime = Date.now();
+
     console.log(`📍 一時的ピン表示開始: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
 
-    // 既に作成中の場合は待機
-    if (temporaryPinState.isCreating) {
-        console.log('⏳ 既にピン作成中、待機します...');
+    // 入力値検証
+    if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+        console.error('❌ 無効な座標値:', { lat, lng });
         return;
     }
 
-    // 同じ位置の場合は何もしない
+    // 既に作成中の場合は前の作成をキャンセル
+    if (temporaryPinState.isCreating) {
+        console.log('⏳ 既存の作成処理をキャンセルして新しい作成を開始');
+        temporaryPinState.isCreating = false;
+    }
+
+    // 同じ位置の場合は何もしない（精度向上）
     if (temporaryPinState.location &&
         Math.abs(temporaryPinState.location.lat - lat) < 0.000001 &&
-        Math.abs(temporaryPinState.location.lng - lng) < 0.000001) {
+        Math.abs(temporaryPinState.location.lng - lng) < 0.000001 &&
+        temporaryPinState.pin) {
         console.log('📍 同じ位置のため、ピン表示をスキップ');
         return;
     }
@@ -232,10 +301,13 @@ async function showTemporaryPin(lat, lng) {
         return;
     }
 
+    // 排他制御フラグ設定
     temporaryPinState.isCreating = true;
+    temporaryPinState.lastUpdate = currentTime;
 
-    // 既存の一時的ピンを削除（削除完了を待機）
-    await removeTemporaryPinAsync();
+    try {
+        // 既存の一時的ピンを削除（削除完了を待機）
+        await removeTemporaryPinAsync();
 
     // 一時的ピンのアイコンを作成（涙型デザイン）
     const tempPinIcon = L.divIcon({
@@ -252,18 +324,19 @@ async function showTemporaryPin(lat, lng) {
         iconAnchor: [16, 40]
     });
 
-    // 一時的ピンを作成
-    temporaryPin = L.marker([lat, lng], {
-        icon: tempPinIcon,
-        zIndexOffset: 1000 // 他のマーカーより前面に表示
-    }).addTo(map);
+        // 一時的ピンを作成
+        temporaryPin = L.marker([lat, lng], {
+            icon: tempPinIcon,
+            zIndexOffset: 1000 // 他のマーカーより前面に表示
+        }).addTo(map);
 
-    // 状態を更新
-    temporaryPinState.pin = temporaryPin;
-    temporaryPinState.location = { lat, lng };
-    temporaryPinState.isCreating = false;
+        // 状態を更新
+        temporaryPinState.pin = temporaryPin;
+        temporaryPinState.location = { lat, lng };
+        temporaryPinState.isCreating = false;
+        temporaryPinState.lastUpdate = Date.now();
 
-    console.log(`📍 一時的ピン作成完了:`, temporaryPin);
+        console.log('📍 一時的ピン作成完了', temporaryPin);
 
     // DOMに追加されるのを待ってからアニメーション開始
     setTimeout(() => {
@@ -281,14 +354,29 @@ async function showTemporaryPin(lat, lng) {
         }
     }, 100);
 
-    // 10秒後に自動削除
-    temporaryPinTimeout = setTimeout(async () => {
-        await removeTemporaryPinAsync();
-    }, 10000);
+        // 自動削除タイムアウトをクリア（既存のものがあれば）
+        if (temporaryPinState.timeout) {
+            clearTimeout(temporaryPinState.timeout);
+        }
+        if (temporaryPinTimeout) {
+            clearTimeout(temporaryPinTimeout);
+        }
 
-    temporaryPinState.timeout = temporaryPinTimeout;
+        // 15秒後に自動削除（延長）
+        temporaryPinTimeout = setTimeout(async () => {
+            console.log('⏰ 一時ピン自動削除タイマー実行');
+            await removeTemporaryPinAsync();
+        }, 15000);
 
-    console.log(`📍 一時的ピン表示完了: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        temporaryPinState.timeout = temporaryPinTimeout;
+
+        console.log(`📍 一時的ピン表示完了: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+
+    } catch (error) {
+        console.error('❌ 一時ピン作成エラー:', error);
+        temporaryPinState.isCreating = false;
+        throw error;
+    }
 }
 
 /**
@@ -359,56 +447,60 @@ function removeTemporaryPin() {
 }
 
 /**
- * 一時的なピンを非同期で削除（即座に削除・即応性重視）
+ * 一時的なピンを非同期で削除（競合状態防止・安全性強化）
  * @returns {Promise} 削除完了のPromise
  */
 function removeTemporaryPinAsync() {
     return new Promise((resolve) => {
-        // 既に削除中の場合は何もしない
-        if (temporaryPinState.isRemoving) {
-            resolve();
-            return;
-        }
-
-        // ピンが存在しない場合は即座に完了
-        if (!temporaryPin && !temporaryPinState.pin) {
-            temporaryPinState.isRemoving = false;
-            resolve();
-            return;
-        }
-
-        temporaryPinState.isRemoving = true;
-        const pinToRemove = temporaryPin || temporaryPinState.pin;
-
-        if (pinToRemove) {
-            // アニメーションなしで即座に削除
-            if (map.hasLayer(pinToRemove)) {
-                map.removeLayer(pinToRemove);
+        try {
+            // 既に削除中の場合は前の削除完了を待つ
+            if (temporaryPinState.isRemoving) {
+                console.log('⏳ 既に削除処理中、前の処理完了を待機');
+                const checkInterval = setInterval(() => {
+                    if (!temporaryPinState.isRemoving) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 10);
+                return;
             }
 
-            // 状態をリセット
-            temporaryPin = null;
-            temporaryPinState.pin = null;
-            temporaryPinState.isRemoving = false;
-            temporaryPinState.location = null;
+            // ピンが存在しない場合は即座に完了
+            if (!temporaryPin && !temporaryPinState.pin) {
+                // 状態を確実にリセット
+                resetTemporaryPinState();
+                resolve();
+                return;
+            }
 
-            console.log('📍 一時的ピン即座削除完了');
-        } else {
-            temporaryPinState.isRemoving = false;
-        }
+            temporaryPinState.isRemoving = true;
+            const pinToRemove = temporaryPin || temporaryPinState.pin;
 
-        // タイムアウトをクリア
-        if (temporaryPinTimeout) {
-            clearTimeout(temporaryPinTimeout);
-            temporaryPinTimeout = null;
-        }
-        if (temporaryPinState.timeout) {
-            clearTimeout(temporaryPinState.timeout);
-            temporaryPinState.timeout = null;
-        }
+            if (pinToRemove) {
+                // アニメーションなしで即座に削除
+                try {
+                    if (map && map.hasLayer(pinToRemove)) {
+                        map.removeLayer(pinToRemove);
+                    }
+                } catch (removeError) {
+                    console.error('❌ ピン削除エラー:', removeError);
+                }
 
-        // 即座に完了
-        resolve();
+                console.log('📍 一時的ピン即座削除完了');
+            }
+
+            // 状態を安全にリセット
+            resetTemporaryPinState();
+
+            // 即座に完了
+            resolve();
+
+        } catch (error) {
+            console.error('❌ 一時ピン削除処理エラー:', error);
+            // エラー時も状態をリセット
+            resetTemporaryPinState();
+            resolve();
+        }
     });
 }
 
@@ -451,6 +543,35 @@ function convertTemporaryPinToPermanent(season = 'その他') {
     console.log(`✅ 永続ピン作成: ${season} - ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
 
     return permanentMarker;
+}
+
+/**
+ * 一時ピン状態を安全にリセット
+ */
+function resetTemporaryPinState() {
+    try {
+        // タイムアウトをクリア
+        if (temporaryPinTimeout) {
+            clearTimeout(temporaryPinTimeout);
+            temporaryPinTimeout = null;
+        }
+        if (temporaryPinState.timeout) {
+            clearTimeout(temporaryPinState.timeout);
+            temporaryPinState.timeout = null;
+        }
+
+        // 状態をリセット
+        temporaryPin = null;
+        temporaryPinState.pin = null;
+        temporaryPinState.isRemoving = false;
+        temporaryPinState.isCreating = false;
+        temporaryPinState.location = null;
+        temporaryPinState.lastUpdate = 0;
+
+        console.log('🔄 一時ピン状態リセット完了');
+    } catch (error) {
+        console.error('❌ 一時ピン状態リセットエラー:', error);
+    }
 }
 
 // =============================================================================
@@ -568,14 +689,13 @@ function hideInlineForm() {
     inlineFormContainer.classList.remove('active');
     isInlineFormVisible = false;
 
-    // 一時的ピンを削除
-    removeTemporaryPin();
+    // 一時的ピンを削除（非同期で安全に）
+    removeTemporaryPinAsync().catch(error => {
+        console.error('❌ フォーム非表示時のピン削除エラー:', error);
+    });
 
     // 一時ピンの状態も確実にリセット
-    temporaryPinState.pin = null;
-    temporaryPinState.location = null;
-    temporaryPinState.isCreating = false;
-    temporaryPinState.isRemoving = false;
+    resetTemporaryPinState();
 
     currentPinLocation = null;
 
@@ -684,6 +804,124 @@ async function handleInlineSubmit(event) {
         showErrorMessage('投稿に失敗しました: ' + error.message);
     } finally {
         isSubmittingHaiku = false;
+    }
+}
+
+// =============================================================================
+// 入力データ保護機能
+// =============================================================================
+
+/**
+ * 未保存フォームデータがあるかチェック
+ * @returns {boolean} 未保存データの有無
+ */
+function hasUnsavedFormData() {
+    if (!isInlineFormVisible) return false;
+
+    const textArea = document.getElementById('inline-haiku-text');
+    if (!textArea) return false;
+
+    const currentText = textArea.value.trim();
+    return currentText.length > 0;
+}
+
+/**
+ * フォームデータ保護機能のセットアップ
+ * @param {HTMLTextAreaElement} textArea - テキストエリア要素
+ */
+function setupFormDataProtection(textArea) {
+    if (!textArea) return;
+
+    // 入力イベントリスナーを設定
+    textArea.addEventListener('input', function() {
+        formState.lastInputTime = Date.now();
+        formState.hasUnsavedData = this.value.trim().length > 0;
+
+        // 入力データをバックアップ
+        formState.inputData.haikuText = this.value;
+
+        console.log('📝 入力データ更新:', {
+            hasData: formState.hasUnsavedData,
+            length: this.value.length
+        });
+    });
+
+    // 自動保存タイマーを設定（5秒間隔）
+    if (formState.autoSaveInterval) {
+        clearInterval(formState.autoSaveInterval);
+    }
+
+    formState.autoSaveInterval = setInterval(() => {
+        if (formState.hasUnsavedData && textArea.value.trim()) {
+            // ローカルストレージに自動保存
+            localStorage.setItem('haiku_draft_backup', JSON.stringify({
+                text: textArea.value,
+                timestamp: Date.now(),
+                location: currentPinLocation
+            }));
+            console.log('💾 自動保存実行');
+        }
+    }, 5000);
+
+    console.log('🛡️ フォームデータ保護機能セットアップ完了');
+}
+
+/**
+ * フォーム状態をリセット
+ */
+function resetFormState() {
+    formState.isVisible = false;
+    formState.hasUnsavedData = false;
+    formState.lastInputTime = 0;
+    formState.inputData = {};
+
+    if (formState.autoSaveInterval) {
+        clearInterval(formState.autoSaveInterval);
+        formState.autoSaveInterval = null;
+    }
+
+    // バックアップデータをクリア
+    localStorage.removeItem('haiku_draft_backup');
+
+    console.log('🔄 フォーム状態リセット完了');
+}
+
+/**
+ * 確認プロンプトなしでフォームを強制非表示
+ */
+function forceHideInlineForm() {
+    if (!inlineFormContainer) return;
+
+    inlineFormContainer.classList.remove('active');
+    isInlineFormVisible = false;
+
+    resetFormState();
+
+    console.log('📍 フォーム強制非表示完了');
+}
+
+/**
+ * バックアップデータから復元
+ * @returns {Object|null} 復元されたデータまたはnull
+ */
+function restoreFromBackup() {
+    try {
+        const backupData = localStorage.getItem('haiku_draft_backup');
+        if (!backupData) return null;
+
+        const parsed = JSON.parse(backupData);
+        const age = Date.now() - parsed.timestamp;
+
+        // 1時間以内のバックアップのみ有効
+        if (age > 60 * 60 * 1000) {
+            localStorage.removeItem('haiku_draft_backup');
+            return null;
+        }
+
+        return parsed;
+    } catch (error) {
+        console.error('❌ バックアップ復元エラー:', error);
+        return null;
     }
 }
 
@@ -821,7 +1059,7 @@ function transitionToDetailForm() {
 // =============================================================================
 
 /**
- * 既存俳句ポップアップの表示
+ * 既存俳句ポップアップの表示（従来版・互換性維持）
  * @param {Array} haikus - 俳句データ配列
  */
 function showExistingHaikuPopup(haikus) {
@@ -844,6 +1082,137 @@ function showExistingHaikuPopup(haikus) {
         .setLatLng([currentPinLocation.lat, currentPinLocation.lng])
         .setContent(popupContent)
         .openOn(map);
+}
+
+/**
+ * 既存俳句ポップアップの表示（オプション付き版）
+ * @param {Array} haikus - 俳句データ配列
+ * @param {number} lat - 緯度
+ * @param {number} lng - 経度
+ */
+function showExistingHaikuPopupWithOptions(haikus, lat, lng) {
+    if (haikus.length === 0) return;
+
+    const haiku = haikus[0]; // 最初の俳句を表示
+
+    const popupContent = `
+        <div class="haiku-popup-with-options">
+            <div class="haiku-display">
+                <div class="haiku-text">${haiku.haiku_text}</div>
+                <div class="haiku-info">
+                    <div class="poet-name">${haiku.poet_name}</div>
+                    <div class="location-info">${haiku.location_name || ''}</div>
+                </div>
+                ${haikus.length > 1 ? `<div class="haiku-count">他 ${haikus.length - 1}件の俳句</div>` : ''}
+            </div>
+
+            <div class="popup-actions">
+                <button class="action-btn secondary" onclick="addNewHaikuAtLocation(${lat}, ${lng})">
+                    📝 この位置に新しい俳句を追加
+                </button>
+                <button class="action-btn primary" onclick="showAllHaikusAtLocation(${lat}, ${lng})">
+                    📜 すべての俳句を表示
+                </button>
+                <button class="action-btn close" onclick="map.closePopup()">
+                    × 閉じる
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Leafletポップアップで表示
+    L.popup({
+        maxWidth: 350,
+        className: 'haiku-options-popup'
+    })
+        .setLatLng([lat, lng])
+        .setContent(popupContent)
+        .openOn(map);
+}
+
+/**
+ * 既存ピン位置での新俳句追加
+ * @param {number} lat - 緯度
+ * @param {number} lng - 経度
+ */
+function addNewHaikuAtLocation(lat, lng) {
+    console.log(`📝 既存位置での新俳句追加: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+
+    // ポップアップを閉じる
+    map.closePopup();
+
+    // 一時ピンを表示してフォームを表示
+    currentPinLocation = { lat, lng };
+
+    // 一時ピンを表示
+    showTemporaryPin(lat, lng);
+
+    // フォームを表示
+    showInlineForm(lat, lng);
+}
+
+/**
+ * 指定位置のすべての俳句を表示
+ * @param {number} lat - 緯度
+ * @param {number} lng - 経度
+ */
+async function showAllHaikusAtLocation(lat, lng) {
+    console.log(`📜 全俳句表示: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+
+    try {
+        // ポップアップを閉じる
+        map.closePopup();
+
+        // 指定位置のすべての俳句を取得
+        const allHaikus = await checkExistingHaikusAtLocation(lat, lng);
+
+        if (allHaikus.length === 0) {
+            console.warn('⚠️ 俳句が見つかりません');
+            return;
+        }
+
+        // 詳細表示用のポップアップを作成
+        const haikuListHTML = allHaikus.map((haiku, index) => `
+            <div class="haiku-item" data-index="${index}">
+                <div class="haiku-text">${haiku.haiku_text}</div>
+                <div class="haiku-meta">
+                    <span class="poet">${haiku.poet_name}</span>
+                    ${haiku.location_name ? `<span class="location">${haiku.location_name}</span>` : ''}
+                    ${haiku.season ? `<span class="season">${haiku.season}</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        const popupContent = `
+            <div class="all-haikus-popup">
+                <div class="popup-header">
+                    <h3>この地点の俳句 (${allHaikus.length}件)</h3>
+                    <button class="close-btn" onclick="map.closePopup()">×</button>
+                </div>
+                <div class="haikus-list">
+                    ${haikuListHTML}
+                </div>
+                <div class="popup-actions">
+                    <button class="action-btn secondary" onclick="addNewHaikuAtLocation(${lat}, ${lng})">
+                        📝 新しい俳句を追加
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // ポップアップ表示
+        L.popup({
+            maxWidth: 400,
+            maxHeight: 300,
+            className: 'all-haikus-popup'
+        })
+            .setLatLng([lat, lng])
+            .setContent(popupContent)
+            .openOn(map);
+
+    } catch (error) {
+        console.error('❌ 全俳句表示エラー:', error);
+    }
 }
 
 // =============================================================================
@@ -941,10 +1310,25 @@ function showDebugPin(lat, lng) {
 // グローバル関数の公開
 // =============================================================================
 
-// Phase2統合のために必要な関数をグローバルに公開
-window.showTemporaryPinFromPinPosting = showTemporaryPin;
-window.removeTemporaryPinFromPinPosting = removeTemporaryPin;
-window.showDebugPinFromPinPosting = showDebugPin;
+// ES Module対応 - HTMLのonclick属性から呼ばれる関数をwindowオブジェクトに公開
+if (typeof window !== 'undefined') {
+    window.hideInlineForm = hideInlineForm;
+    window.addNewHaikuAtLocation = addNewHaikuAtLocation;
+    window.showAllHaikusAtLocation = showAllHaikusAtLocation;
+    window.handleInlineSubmit = handleInlineSubmit;
+
+    // Phase2統合のために必要な関数をグローバルに公開
+    window.showTemporaryPinFromPinPosting = showTemporaryPin;
+    window.removeTemporaryPinFromPinPosting = removeTemporaryPin;
+    window.showDebugPinFromPinPosting = showDebugPin;
+
+    console.log('✅ pin-posting.js グローバル関数をwindowに公開');
+}
+
+// ES Module exports (app-manager.jsから使用される関数)
+export {
+    initializePinPosting
+};
 
 // =============================================================================
 // 初期化時の自動実行

@@ -1,0 +1,124 @@
+{
+  "description": "季語バッチ処理システムの設定ファイル",
+  "version": "1.0.0",
+  "input": {
+    "file": "./misc/sample/haikus_sample.csv",
+    "encoding": "utf8",
+    "delimiter": ",",
+    "description": "入力CSVファイルの設定"
+  },
+  "output": {
+    "file": "./output_with_kigo.csv",
+    "encoding": "utf8",
+    "overwrite": true,
+    "description": "出力CSVファイルの設定"
+  },
+  "processing": {
+    "batchSize": 100,
+    "progressInterval": 10,
+    "maxConcurrent": 5,
+    "timeout": 30000,
+    "description": "処理性能とタイムアウトの設定"
+  },
+  "kigo": {
+    "maxSuggestions": 5,
+    "minTextLength": 5,
+    "maxHaikuLength": 19,
+    "preferLongerMatches": true,
+    "description": "季語抽出の設定"
+  },
+  "logging": {
+    "level": "info",
+    "showProgress": true,
+    "showStatistics": true,
+    "logErrors": true,
+    "description": "ログ出力の設定"
+  },
+  "csv": {
+    "autoDetectHeaders": true,
+    "haikuColumn": "haiku_text",
+    "seasonColumn": "season",
+    "kigoColumn": "keywords",
+    "fallbackHaikuColumns": [
+      "haiku",
+      "text",
+      "俳句",
+      "句"
+    ],
+    "description": "CSV形式の設定"
+  },
+  "supabase": {
+    "useEnvironmentVariables": true,
+    "connectionTimeout": 10000,
+    "retryAttempts": 3,
+    "description": "Supabaseデータベース接続の設定"
+  },
+  "examples": {
+    "basic": {
+      "description": "基本的な使用例",
+      "command": "node kigo-batch-processor.js",
+      "input": "./misc/updater/shikus.csv",
+      "output": "./output_with_kigo.csv"
+    },
+    "custom": {
+      "description": "カスタム設定での使用例",
+      "command": "node kigo-batch-processor.js -i custom.csv -o result.csv",
+      "input": "custom.csv",
+      "output": "result.csv"
+    },
+    "withConfig": {
+      "description": "設定ファイルを使用した例",
+      "command": "node kigo-batch-processor.js -c batch-config.json",
+      "configFile": "batch-config.json"
+    }
+  },
+  "csvFormats": {
+    "standard": {
+      "description": "標準的な俳句CSV形式",
+      "requiredColumns": [
+        "haiku_text"
+      ],
+      "optionalColumns": [
+        "poet_name",
+        "location_name",
+        "date_composed"
+      ],
+      "example": "haiku_text,poet_name,location_name\n古池や蛙飛び込む水の音,松尾芭蕉,深川芭蕉庵"
+    },
+    "extended": {
+      "description": "拡張俳句CSV形式（位置情報付き）",
+      "requiredColumns": [
+        "haiku_text"
+      ],
+      "optionalColumns": [
+        "poet_name",
+        "latitude",
+        "longitude",
+        "location_type",
+        "season",
+        "seasonal_term"
+      ],
+      "example": "haiku_text,poet_name,latitude,longitude,location_type\n古池や蛙飛び込む水の音,松尾芭蕉,35.7028,139.7753,ゆかりの地"
+    }
+  },
+  "troubleshooting": {
+    "commonIssues": [
+      {
+        "issue": "季語データベースの初期化失敗",
+        "solution": "Supabase接続設定を確認してください。環境変数SUPABASE_URLとSUPABASE_ANON_KEYが正しく設定されているか確認してください。"
+      },
+      {
+        "issue": "CSVファイルが見つからない",
+        "solution": "入力ファイルのパスが正しいか確認してください。相対パスの場合は実行ディレクトリからの相対位置を確認してください。"
+      },
+      {
+        "issue": "文字エンコーディングエラー",
+        "solution": "CSVファイルのエンコーディングを確認してください。日本語を含む場合はUTF-8で保存されているか確認してください。"
+      },
+      {
+        "issue": "メモリ不足エラー",
+        "solution": "大きなファイルの場合はbatchSizeを小さくするか、Node.jsのメモリ制限を増やしてください: node --max-old-space-size=4096 kigo-batch-processor.js"
+      }
+    ]
+  }
+}

@@ -11,24 +11,6 @@ const SUPABASE_CONFIG = {
     schema: 'public'
 };
 
-// 従来のGAS API設定（後方互換性のため残しておく）
-const API_CONFIG = {
-    // Google Apps Script Web App URL（移行後は不要）
-    BASE_URL: 'https://script.google.com/macros/s/AKfycbx8jz9Eg5LPb-lUm_7dDuKPX8q_DtQfaDx3b3wYW6lKFLMugWi2nMC8ucMZFAyRE9SkLw/exec',
-
-    // APIエンドポイント
-    ENDPOINTS: {
-        HAIKUS: 'api/haikus',
-        HAIKUS_MAP: 'api/haikus/map',
-        HAIKUS_SEARCH: 'api/haikus/search',
-        POETS: 'api/poets',
-        POETS_SEARCH: 'api/poets/search'
-    },
-
-    // リクエスト設定
-    TIMEOUT: 30000, // 30秒（POST処理に時間がかかるため）
-    RETRY_COUNT: 1  // POSTは重複を防ぐため1回のみ
-};
 
 // 地図設定
 const MAP_CONFIG = {
@@ -114,7 +96,7 @@ const UI_CONFIG = {
 // アプリケーション設定
 const APP_CONFIG = {
     // データベース移行設定
-    USE_SUPABASE: true, // trueでSupabase、falseで従来のGAS API
+    USE_SUPABASE: true, // Supabaseを使用
 
     // デバッグ設定
     DEBUG_MODE: false,
@@ -137,7 +119,10 @@ function validateConfig() {
         }
         console.log('✅ Supabase設定が有効です');
     } else {
-        console.log('ℹ️ 従来のGAS APIを使用します');
+        console.warn('⚠️ Supabase設定が無効です');
     }
     return true;
 }
+
+// ES Module exports（他のモジュールからimport可能にする）
+export { MAP_CONFIG, SUPABASE_CONFIG, APP_CONFIG, UI_CONFIG, validateConfig };

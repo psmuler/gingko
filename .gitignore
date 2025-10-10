@@ -1,7 +1,86 @@
-.claude/
-.env
+# ================================================
+# 俳句鑑賞＆記録アプリ - .gitignore
+# ================================================
 
-/log/*
-/node_modules/*
-/venv/*
-/misc/*
+# Claude Code設定
+.claude/
+
+# ================================================
+# Node.js / npm
+# ================================================
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# ================================================
+# macOS システムファイル
+# ================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ================================================
+# 開発環境
+# ================================================
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Editor backup files
+*.bak
+*.orig
+
+# ================================================
+# プロジェクト固有
+# ================================================
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+log/
+logs/
+*.log
+
+# Build outputs (将来対応)
+dist/
+build/
+out/
+
+# Temporary files
+*.tmp
+*.cache
+
+# Python環境 (既存保持)
+venv/
+__pycache__/
+*.pyc
+
+# 開発用データ
+misc/

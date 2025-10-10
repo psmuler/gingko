@@ -3,6 +3,9 @@
  * リファクタリング版 - 責任分離と可読性向上
  */
 
+import { MAP_CONFIG, UI_CONFIG } from './config.js';
+import { apiAdapter } from './api-adapter.js';
+
 // =============================================================================
 // グローバル変数と定数
 // =============================================================================
@@ -407,6 +410,43 @@ function closeAbout() {
     closeModal();
 }
 
+/**
+ * リンク集画面を表示
+ */
+async function showFavLinks() {
+    closeMenu();
+
+    try {
+        const response = await fetch('./fav_links.html', {
+            method: 'GET',
+            cache: 'no-cache',
+            headers: {
+                'Content-Type': 'text/html'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const favLinksContent = await response.text();
+        showModal(favLinksContent);
+    } catch (error) {
+        console.error('リンク集画面の読み込みエラー:', error);
+        showModal(`
+            <div class="error-container">
+                <h2>エラー</h2>
+                <p>リンク集の読み込みに失敗しました。</p>
+                <button onclick="closeModal()" class="primary-btn">閉じる</button>
+            </div>
+        `);
+    }
+}
+
+function closeFavLinks() {
+    closeModal();
+}
+
 // =============================================================================
 // タイルレイヤー管理（OpenStreetMap Access Blocked対応）
 // =============================================================================
@@ -662,11 +702,22 @@ function handleMapInitializationError(error) {
 
 // 基本的な地図初期化
 function initializeMap() {
+    // 重複初期化防止
+    if (map) {
+        console.warn('⚠️ 地図は既に初期化済みです');
+        return;
+    }
+
     // 地図設定を使用
     const center = MAP_CONFIG.DEFAULT_CENTER;
     const zoom = MAP_CONFIG.DEFAULT_ZOOM;
 
-    map = L.map('map').setView(center, zoom);
+    try {
+        map = L.map('map').setView(center, zoom);
+    } catch (error) {
+        console.error('❌ 地図初期化エラー:', error);
+        throw error;
+    }
 
     // タイルレイヤーを追加（フォールバック機能付き）
     initializeTileLayer();
@@ -1418,3 +1469,34 @@ function getFormContainer() {
 function getHaikuForm() {
     return document.getElementById('haiku-form');
 }
+
+// =============================================================================
+// ES Module 対応 - グローバル関数の公開
+// =============================================================================
+
+// HTMLのonclick属性から呼ばれる関数をwindowオブジェクトに公開
+if (typeof window !== 'undefined') {
+    window.toggleMenu = toggleMenu;
+    window.closeMenu = closeMenu;
+    window.showAbout = showAbout;
+    window.showFavLinks = showFavLinks;
+    window.goToCurrentLocation = goToCurrentLocation;
+    window.closeHaikuForm = closeHaikuForm;
+    window.getCurrentLocationForForm = getCurrentLocationForForm;
+    window.submitHaiku = submitHaiku;
+    window.closeModal = closeModal;
+    window.showHaikuDetail = showHaikuDetail;
+    window.closeAbout = closeAbout;
+
+    console.log('✅ script.js グローバル関数をwindowに公開');
+}
+
+// ES Module exports (app-manager.js、pin-posting.jsから使用される関数・変数)
+export {
+    initializeMapWithLocation,
+    initializeMap,
+    loadHaikuData,
+    showErrorMessage,
+    showSuccessMessage,
+    map
+};

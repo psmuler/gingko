@@ -3,6 +3,8 @@
  * スプレッドシートからSupabaseへの移行版
  */
 
+import { SUPABASE_CONFIG } from './config.js';
+
 class SupabaseHaikuClient {
     constructor() {
         // Supabase設定を確認
@@ -391,7 +393,7 @@ class SupabaseHaikuClient {
             while (hasMoreData) {
                 const { data, error } = await this.supabase
                     .from('keywords')
-                    .select('display_name, display_name_alternatives, season, description')
+                    .select('id, display_name, display_name_alternatives, season, description')
                     .eq('type', '季語')
                     .range(offset, offset + batchSize - 1)
                     .order('display_name');
@@ -525,7 +527,8 @@ class SupabaseHaikuClient {
             date_composed: haikuData.date_composed || null,
             description: haikuData.description || '',
             season: haikuData.season || null,
-            seasonal_term: haikuData.seasonal_term || null
+            seasonal_term: haikuData.seasonal_term || null,
+            keyword_id: haikuData.keyword_id || null  // 季語IDフィールドを追加
         };
     }
 
@@ -567,3 +570,26 @@ function getSupabaseClient() {
     }
     return supabaseClient;
 }
+
+// ブラウザ対応: グローバルスコープに関数を公開
+if (typeof window !== 'undefined') {
+    // ブラウザ環境
+    window.SupabaseHaikuClient = SupabaseHaikuClient;
+    window.getSupabaseClient = getSupabaseClient;
+}
+
+// Node.js環境のES Module対応
+if (typeof module !== 'undefined' && module.exports) {
+    // CommonJS
+    module.exports = { SupabaseHaikuClient, getSupabaseClient };
+}
+
+// ES Module環境（Node.js）
+if (typeof globalThis !== 'undefined' && typeof window === 'undefined') {
+    // Node.js環境でのグローバル設定
+    globalThis.SupabaseHaikuClient = SupabaseHaikuClient;
+    globalThis.getSupabaseClient = getSupabaseClient;
+}
+
+// ES Module export（migration-tool.js等のES Moduleツール用）
+export { SupabaseHaikuClient, getSupabaseClient };
