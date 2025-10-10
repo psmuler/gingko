@@ -4,129 +4,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>俳句鑑賞＆記録アプリ</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>吟行 - 俳句鑑賞＆記録アプリ</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        }
 
-    <!-- Supabase JavaScript SDK -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+        .loading-container {
+            text-align: center;
+            color: white;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 400;
+            margin: 0;
+            letter-spacing: 0.1em;
+        }
+
+        p {
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+    </style>
 </head>
 
 <body>
-    <div id="app">
-        <header>
-            <div class="header-content">
-                <h1>吟行</h1>
-                <p>名句ゆかりの地を巡りましょう</p>
-            </div>
-            <button id="menu-toggle" class="menu-toggle" onclick="toggleMenu()">
-                <span></span>
-                <span></span>
-                <span></span>
-            </button>
-        </header>
-
-        <!-- ハンバーガーメニュー -->
-        <nav id="nav-menu" class="nav-menu">
-            <ul>
-                <li><a href="#" onclick="closeMenu()">地図</a></li>
-                <li><a href="#" onclick="showAbout()">このアプリについて</a></li>
-                <li><a href="#" onclick="showFavLinks()">リンク集</a></li>
-            </ul>
-        </nav>
-        <main>
-            <div id="map-container">
-                <div id="map"></div>
-                <div id="map-controls">
-                    <button id="current-location-btn" class="map-control-btn gps-nav-btn"
-                        onclick="goToCurrentLocation()" title="現在地に移動">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <!-- Google Maps風の十字型ナビゲーションアイコン -->
-                            <path d="M10 1 L10 6 M10 14 L10 19 M1 10 L6 10 M14 10 L19 10" stroke="white"
-                                stroke-width="2" stroke-linecap="round" />
-                            <circle cx="10" cy="10" r="2.5" fill="white" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <!-- 俳句投稿フォーム -->
-            <div id="haiku-form-container" class="form-container" style="display: none;">
-                <div class="form-overlay" onclick="closeHaikuForm()"></div>
-                <div class="form-content">
-                    <h2>俳句を投稿</h2>
-                    <form id="haiku-form" onsubmit="submitHaiku(event)">
-                        <div class="form-group">
-                            <label for="haiku-text">俳句</label>
-                            <textarea id="haiku-text" name="haiku_text" required
-                                placeholder="古池や&#10;蛙飛び込む&#10;水の音"></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="poet-name">詠み人</label>
-                            <input type="text" id="poet-name" name="poet_name" required placeholder="松尾芭蕉">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="location-type">場所の種別</label>
-                            <select id="location-type" name="location_type" required>
-                                <option value="">選択してください</option>
-                                <option value="句碑">句碑</option>
-                                <option value="紀行文">紀行文</option>
-                                <option value="ゆかりの地">ゆかりの地</option>
-                            </select>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="latitude">緯度</label>
-                                <input type="number" id="latitude" name="latitude" step="0.000001" required
-                                    placeholder="35.7028">
-                            </div>
-                            <div class="form-group">
-                                <label for="longitude">経度</label>
-                                <input type="number" id="longitude" name="longitude" step="0.000001" required
-                                    placeholder="139.7753">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="location-name">場所名</label>
-                            <input type="text" id="location-name" name="location_name" placeholder="深川">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="date-composed">詠んだ日付</label>
-                            <input type="date" id="date-composed" name="date_composed">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="description">説明・備考</label>
-                            <textarea id="description" name="description" placeholder="俳句に関する説明や背景など"></textarea>
-                        </div>
-
-                        <div class="form-actions">
-                            <button type="button" onclick="getCurrentLocationForForm()"
-                                class="secondary-btn">現在地を取得</button>
-                            <button type="button" onclick="closeHaikuForm()" class="secondary-btn">キャンセル</button>
-                            <button type="submit" class="primary-btn">投稿</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </main>
+    <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <h1>吟行</h1>
+        <p>読み込み中...</p>
     </div>
 
-    <!-- OpenStreetMap + Leaflet を使用 -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        /**
+         * Routing Hub
+         * Determines which page to show based on user state
+         */
 
-    <!-- Leaflet MarkerCluster プラグイン -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+        function checkFirstVisit() {
+            return !localStorage.getItem('hasVisited');
+        }
 
-    <!-- ES Module対応JavaScript読み込み -->
-    <script type="module" src="js/main.js"></script>
+        function checkAuthentication() {
+            // Future: Check if user is logged in
+            // return localStorage.getItem('userToken') !== null;
+            return false; // Not implemented yet
+        }
+
+        function route() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const mode = urlParams.get('mode');
+            const kigo = urlParams.get('kigo');
+
+            // Handle direct routing from query parameters
+            if (mode === 'compose' && kigo) {
+                // Redirect to home with compose mode
+                window.location.href = `home.html?mode=compose&kigo=${encodeURIComponent(kigo)}`;
+                return;
+            }
+
+            // Check if first visit
+            if (checkFirstVisit()) {
+                // First time visitor - show welcome screen
+                window.location.href = 'welcome.html';
+                return;
+            }
+
+            // Future: Check authentication
+            // if (!checkAuthentication()) {
+            //     window.location.href = 'login.html';
+            //     return;
+            // }
+
+            // Default: Go to home (map page)
+            window.location.href = 'home.html';
+        }
+
+        // Execute routing
+        route();
+    </script>
 </body>
 
 </html>
