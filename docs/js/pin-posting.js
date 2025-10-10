@@ -6,7 +6,8 @@
 import { MAP_CONFIG } from './config.js';
 import { map, showErrorMessage, showSuccessMessage, loadHaikuData } from './script.js';
 import { apiAdapter } from './api-adapter.js';
-import { attachKigoSuggestionToInput, getCurrentKigoSelection } from './kigo-suggestions.js';
+import { getCurrentKigoSelection } from './kigo-suggestions.js';
+import { createHaikuForm, initializeKigoSuggestion, setupFormCloseHandlers } from './haiku-form-component.js';
 
 // =============================================================================
 // グローバル変数
@@ -579,49 +580,42 @@ function resetTemporaryPinState() {
 // =============================================================================
 
 /**
- * インラインフォームHTMLの作成（Phase 2: 季語サジェスト対応）
+ * インラインフォームHTMLの作成（Phase 2: 季語サジェスト対応 + Component化）
  */
 function createInlineFormHTML() {
+    // Use haiku-form-component to generate form HTML
+    const formContent = createHaikuForm({
+        formId: 'inline-haiku-form',
+        textAreaId: 'inline-haiku-text',
+        suggestionsId: 'kigo-suggestions',
+        showPoetField: false,
+        showHeader: true,
+        showSwipeIndicator: true,
+        submitButtonText: '投稿',
+        placeholder: '斧入れて香に驚くや冬木立'
+    });
+
     const formHTML = `
         <div id="inline-form-container" class="inline-form">
-            <div class="swipe-indicator"></div>
-            <div class="form-header">
-                <h3>俳句を投稿</h3>
-                <button class="close-btn" onclick="hideInlineForm()">×</button>
-            </div>
-
-            <form id="inline-haiku-form" onsubmit="handleInlineSubmit(event)">
-                <div class="form-group">
-                    <textarea id="inline-haiku-text" name="haiku_text" required
-                              placeholder="斧入れて香に驚くや冬木立"
-                              rows="1"></textarea>
-                </div>
-
-                <!-- 季語サジェスト機能 -->
-                <div class="kigo-section">
-                    <div id="kigo-suggestions" class="kigo-suggestions">
-                        <!-- 動的に生成される季語ボタン -->
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" onclick="hideInlineForm()" class="secondary-btn">
-                        キャンセル
-                    </button>
-                    <button type="submit" class="primary-btn">
-                        投稿
-                    </button>
-                </div>
-            </form>
+            ${formContent}
         </div>
     `;
 
-    // body に追加
+    // Add to body
     document.body.insertAdjacentHTML('beforeend', formHTML);
     inlineFormContainer = document.getElementById('inline-form-container');
 
     if (inlineFormContainer) {
-        console.log('✅ インラインフォームコンテナDOMに追加成功');
+        console.log('✅ インラインフォームコンテナDOMに追加成功 (component化)');
+
+        // Setup close handlers using component function
+        setupFormCloseHandlers('inline-form-container', hideInlineForm);
+
+        // Setup form submit handler
+        const form = document.getElementById('inline-haiku-form');
+        if (form) {
+            form.addEventListener('submit', handleInlineSubmit);
+        }
     } else {
         console.error('❌ インラインフォームコンテナの追加に失敗');
     }
@@ -659,19 +653,14 @@ function showInlineForm(lat, lng) {
     console.log('✅ フォーム表示クラス追加完了');
 
     // フォーカス設定と季語サジェスト機能のアタッチ
-    setTimeout(() => {
+    setTimeout(async () => {
         const textArea = document.getElementById('inline-haiku-text');
         if (textArea) {
             textArea.focus();
             console.log('✅ フォーカス設定完了');
 
-            // 季語サジェスト機能をアタッチ
-            if (typeof attachKigoSuggestionToInput === 'function') {
-                attachKigoSuggestionToInput('inline-haiku-text', 'kigo-suggestions');
-                console.log('✅ 季語サジェスト機能アタッチ完了');
-            } else {
-                console.warn('⚠️ 季語サジェスト機能が利用できません');
-            }
+            // 季語サジェスト機能をアタッチ (component function)
+            await initializeKigoSuggestion('inline-haiku-text', 'kigo-suggestions');
         } else {
             console.error('❌ inline-haiku-text が見つかりません');
         }
