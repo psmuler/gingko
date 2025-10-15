@@ -86,7 +86,134 @@
 - **ユーティリティ分離**: 共通処理を`utils.js`で独立管理
 - **設定駆動**: `config.js`での集中的な設定管理
 
+## 📂 プロジェクト構成
+
+```
+claude_proj/
+├── docs/                      # メインアプリケーションディレクトリ（GitHub Pagesで公開）
+│   ├── index.html            # ルーティングハブ（初回訪問判定）
+│   ├── welcome.html          # ウェルカム画面
+│   ├── home.html             # メイン地図画面
+│   ├── haiku-compose.html    # 俳句作成専用ページ
+│   ├── kigo-gatcha.html      # 季語ガチャページ
+│   ├── about.html            # アプリ情報・使い方
+│   ├── fav_links.html        # お気に入りリンク
+│   ├── favicon.png           # ファビコン
+│   ├── ogp.png               # OGP画像
+│   ├── css/
+│   │   └── styles.css        # メインスタイルシート
+│   └── js/
+│       ├── main.js           # エントリーポイント
+│       ├── script.js         # メインロジック
+│       ├── app-manager.js    # アプリケーション状態管理
+│       ├── config.js         # アプリ設定
+│       ├── utils.js          # 共通ユーティリティ
+│       ├── supabase-client.js           # Supabaseクライアント
+│       ├── api-adapter.js               # API統合インターフェース
+│       ├── kigo-suggestions.js          # 季語サジェスト・自動検出
+│       ├── seasonal-suggest.js          # 季節推定機能
+│       ├── pin-posting.js               # ピン投稿機能
+│       ├── haiku-form-component.js      # 俳句入力フォームコンポーネント
+│       ├── kigo-gatcha.js               # 季語ガチャロジック
+│       ├── kigo-gatcha-logic.js         # 季語ガチャコアロジック
+│       ├── kigo-batch-processor.js      # 季語バッチ処理
+│       ├── migration-tool.js            # データ移行ツール
+│       ├── data_migration.js            # データ移行スクリプト
+│       └── migrate-keywords.js          # 季語データ移行
+├── scheme/                    # データベーススキーマ・テンプレート
+│   ├── supabase_setup.sql    # データベースセットアップSQL
+│   ├── schema-update.sql     # スキーマ更新SQL
+│   ├── keywords.csv          # 季語データベース
+│   ├── haikus_template.csv   # 俳句テンプレート
+│   └── poets_template.csv    # 詠み人テンプレート
+├── misc/                      # 開発ツール・補助スクリプト
+│   ├── extractor/            # データ抽出ツール
+│   ├── locator/              # 位置情報処理
+│   ├── poet_id_identifier/   # 詠み人ID管理
+│   ├── deduplicator/         # 重複削除ツール
+│   └── updater/              # データ更新ツール
+├── prompts_guides/            # 開発ガイド・プロンプト集
+├── log/                       # ログファイル
+├── package.json               # Node.js依存関係
+├── server.js                  # ローカル開発サーバー
+├── requirements.txt           # Python依存関係
+├── README.md                  # このファイル
+└── .gitignore                 # Git除外設定
+```
+
+## 🗃 データベース構造
+
+### テーブル設計
+
+#### `poets`（詠み人テーブル）
+- `id`: 詠み人ID（主キー）
+- `name`: 詠み人名
+- `name_kana`: 詠み人名（ひらがな）
+- `birth_year`: 生年
+- `death_year`: 没年
+- `period`: 時代
+- `biography`: 経歴・説明
+
+#### `haikus`（俳句テーブル）
+- `id`: 俳句ID（主キー）
+- `haiku_text`: 俳句本文
+- `poet_id`: 詠み人ID（外部キー）
+- `latitude`: 緯度
+- `longitude`: 経度
+- `location_type`: 場所種別（句碑/紀行文/ゆかりの地）
+- `location_name`: 場所名
+- `date_composed`: 詠まれた日付
+- `description`: 説明・備考
+- `season`: 季節
+- `seasonal_term`: 季語
+
+### サンプルデータ
+
+現在約100件の俳句データと10名の詠み人データを収録しています。
+
+## ⚙️ セットアップ・設定
+
+### 1. 基本セットアップ
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/psmuler/claude_proj.git
+cd claude_proj
+
+# Node.js依存関係をインストール
+npm install
+
+# ローカル開発サーバーを起動
+npm start
+# または開発モード（自動リロード）
+npm run dev
+```
+
+### 2. Supabase設定
+
+`docs/js/config.js`でSupabase接続情報を設定:
+
+```javascript
+// config.js
+const SUPABASE_CONFIG = {
+    url: 'https://your-project-id.supabase.co',
+    anon_key: 'your-anon-key-here'
+};
+```
+
+### 3. データベース初期化
+
+```bash
+# Supabaseダッシュボードでscheme/supabase_setup.sqlを実行
+# テーブル作成とインデックス設定が完了します
+
+# 季語データを移行する場合（オプション）
+npm run migrate-keywords
+```
+
 ## 🎮 使い方
+
+### ユーザー向け
 
 1. **俳句を見つける**
    - 地図をドラッグ・ズームして探索
@@ -213,6 +340,18 @@ const APP_CONFIG = {
 - **バッチ処理**: `docs/js/kigo-batch-processor.js` - 季語の一括処理
 - **移行ツール**: `docs/js/migration-tool.js` - データベース移行支援
 
+## 📊 パフォーマンス
+
+### 最適化済み機能
+
+- **インデックス設定**: 地理検索、全文検索用の最適化されたインデックス
+- **レスポンシブ画像**: 地図タイルの適切なキャッシュ
+- **非同期読み込み**: JavaScriptの並列読み込み
+- **データ圧縮**: 必要最小限のデータ転送
+- **インテリジェントクラスタリング**: ズームレベルに応じた動的ピン表示
+- **季節別クラスタ色分け**: 視覚的に分かりやすいクラスタ表現
+- **モジュラー設計**: 機能別ファイル分割による保守性向上
+
 ### 推奨環境
 
 - **ブラウザ**: Chrome 80+, Firefox 75+, Safari 13+, Edge 80+
@@ -223,7 +362,7 @@ const APP_CONFIG = {
 
 ### バージョン履歴
 
-- **Ver 2.4** (2025年): 現在のバージョン
+- **Ver 2.3** (2025年): 現在のバージョン
   - ✅ 季語ガチャ機能の実装
   - ✅ ウェルカム画面の追加
   - ✅ ルーティングハブの実装
