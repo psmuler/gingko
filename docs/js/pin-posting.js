@@ -6,7 +6,7 @@
 import { MAP_CONFIG } from './config.js';
 import { map, showErrorMessage, showSuccessMessage, loadHaikuData } from './script.js';
 import { apiAdapter } from './api-adapter.js';
-import { getCurrentKigoSelection } from './kigo-suggestions.js';
+import { getCurrentKigoSelection, resetKigoSelection } from './kigo-suggestions.js';
 import { createHaikuForm, initializeKigoSuggestion, setupFormCloseHandlers } from './haiku-form-component.js';
 
 // =============================================================================
@@ -74,6 +74,12 @@ function initializePinPosting() {
             console.log('✅ 地図クリックハンドラー設定完了');
 
             setupSwipeHandlers();
+            console.log('✅ スワイプハンドラー設定完了');
+
+            // 初期フォームを表示（ピンなし、投稿時に現在地取得）
+            showInlineFormWithoutPin();
+            console.log('✅ 初期フォーム表示完了');
+
             console.log('✅ ピン投稿システム初期化完了');
         }, 100);
 
@@ -670,6 +676,53 @@ function showInlineForm(lat, lng) {
 }
 
 /**
+ * 初期フォーム表示（ピンなし）
+ * ページ読み込み時に呼ばれ、投稿時に現在地を取得する
+ */
+function showInlineFormWithoutPin() {
+    console.log('📍 初期フォーム表示（ピンなし、投稿時に現在地取得）');
+
+    if (!inlineFormContainer) {
+        console.error('❌ inlineFormContainer が見つかりません');
+        return;
+    }
+
+    // currentPinLocation は null のまま（投稿時に現在地を取得）
+    currentPinLocation = null;
+
+    // フォームリセット
+    const form = document.getElementById('inline-haiku-form');
+    if (form) {
+        form.reset();
+        console.log('✅ フォームリセット完了');
+    } else {
+        console.error('❌ inline-haiku-form が見つかりません');
+        return;
+    }
+
+    // フォーム表示
+    inlineFormContainer.classList.add('active');
+    isInlineFormVisible = true;
+    console.log('✅ フォーム表示クラス追加完了');
+
+    // フォーカス設定と季語サジェスト機能のアタッチ
+    setTimeout(async () => {
+        const textArea = document.getElementById('inline-haiku-text');
+        if (textArea) {
+            textArea.focus();
+            console.log('✅ フォーカス設定完了');
+
+            // 季語サジェスト機能をアタッチ
+            await initializeKigoSuggestion('inline-haiku-text', 'kigo-suggestions');
+        } else {
+            console.error('❌ inline-haiku-text が見つかりません');
+        }
+    }, 300);
+
+    console.log('✅ 初期フォーム表示完了（現在地は投稿時に取得）');
+}
+
+/**
  * インラインフォームの非表示
  */
 function hideInlineForm() {
@@ -742,16 +795,23 @@ function updateFormLocationInfo(lat, lng) {
 async function handleInlineSubmit(event) {
     event.preventDefault();
 
-    if (!currentPinLocation) {
-        showErrorMessage('位置情報が取得できません');
-        return;
-    }
-
     if (isSubmittingHaiku) return;
 
     try {
         isSubmittingHaiku = true;
         const formData = new FormData(event.target);
+
+        // 位置情報の取得
+        let location;
+        if (currentPinLocation) {
+            // ピンが置かれている場合はその位置を使用
+            location = currentPinLocation;
+            console.log('📍 ピンの位置で投稿:', location);
+        } else {
+            // ピンがない場合は投稿時の現在地を取得
+            location = await getCurrentLocationForSubmit();
+            console.log('📍 投稿時の現在地を取得:', location);
+        }
 
         // 季語選択状態を取得
         let selectedKigoInfo = { season: 'その他', selectedKigo: null, isSeasonless: false };
@@ -763,8 +823,8 @@ async function handleInlineSubmit(event) {
         const haikuData = {
             haiku_text: formData.get('haiku_text'),
             poet_name: '詠み人知らず',              // デフォルト
-            latitude: currentPinLocation.lat,
-            longitude: currentPinLocation.lng,
+            latitude: location.lat,
+            longitude: location.lng,
             location_type: 'ゆかりの地',           // デフォルト
             location_name: '',                     // 空文字
             season: selectedKigoInfo.season || 'その他',
@@ -778,15 +838,43 @@ async function handleInlineSubmit(event) {
         // API投稿
         await submitHaikuData(haikuData);
 
-        // 一時的ピンを永続ピンに変換
-        convertTemporaryPinToPermanent(haikuData.season);
+        // 一時的ピンを永続ピンに変換（ピンがある場合のみ）
+        if (currentPinLocation) {
+            convertTemporaryPinToPermanent(haikuData.season);
+        }
 
         // 成功処理
         showSuccessMessage('俳句を投稿しました！');
-        hideInlineForm();
+
+        // フォームをリセット（隠さずに次の句を入力できるようにする）
+        const form = document.getElementById('inline-haiku-form');
+        if (form) {
+            form.reset();
+            console.log('✅ フォームリセット完了');
+        }
+
+        // 季語選択状態をリセット
+        resetKigoSelection();
+        console.log('✅ 季語選択状態リセット完了');
+
+        // 季語サジェストコンテナをクリア
+        const suggestionsContainer = document.getElementById('kigo-suggestions');
+        if (suggestionsContainer) {
+            suggestionsContainer.innerHTML = '';
+            suggestionsContainer.className = 'kigo-suggestions';
+            console.log('✅ 季語サジェスト表示クリア完了');
+        }
+
+        // currentPinLocationをリセット（次の投稿も投稿時の現在地を使う）
+        currentPinLocation = null;
+
+        // 一時ピンを削除
+        await removeTemporaryPinAsync();
 
         // 地図データ更新
         await loadHaikuData();
+
+        console.log('✅ 投稿完了、フォームは表示したまま次の句を入力可能');
 
     } catch (error) {
         console.error('❌ 俳句投稿エラー:', error);
@@ -1240,6 +1328,49 @@ async function submitHaikuData(haikuData) {
     }
 
     return result;
+}
+
+/**
+ * 投稿時の現在地を取得（高精度モード）
+ * @returns {Promise<Object>} 位置情報オブジェクト { lat, lng }
+ */
+async function getCurrentLocationForSubmit() {
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+            console.warn('⚠️ 位置情報がサポートされていません。デフォルト位置を使用します。');
+            resolve({
+                lat: 35.6809591,
+                lng: 139.7673068
+            });
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                console.log('✅ 投稿時の現在地取得成功:', {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    accuracy: position.coords.accuracy
+                });
+                resolve({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                });
+            },
+            (error) => {
+                console.warn('⚠️ 位置情報取得失敗:', error.message);
+                resolve({
+                    lat: 35.6809591,
+                    lng: 139.7673068
+                });
+            },
+            {
+                enableHighAccuracy: true,  // 高精度モード
+                timeout: 10000,            // 10秒でタイムアウト
+                maximumAge: 0              // キャッシュを使わない
+            }
+        );
+    });
 }
 
 // =============================================================================
