@@ -253,11 +253,22 @@ function renderKigoSuggestions(matches, containerId = 'kigo-suggestions') {
     matches.forEach(match => {
         const button = createKigoButton(match.kigo, match.matchedText);
         container.appendChild(button);
+
+        // 既存の選択状態を復元
+        if (selectedKigoState.selectedKigo &&
+            selectedKigoState.selectedKigo.id === match.kigo.id) {
+            button.classList.add('selected');
+        }
     });
 
     // 「季なし」ボタンを常に追加
     const seasonlessButton = createSeasonlessButton();
     container.appendChild(seasonlessButton);
+
+    // 「季なし」の選択状態を復元
+    if (selectedKigoState.isSeasonless) {
+        seasonlessButton.classList.add('selected');
+    }
 
     // コンテナの表示状態を更新
     if (matches.length > 0) {
