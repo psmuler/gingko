@@ -117,13 +117,6 @@ function buildKigoSearchCache() {
     });
 
     console.log(`🔧 高速検索キャッシュ構築完了: ${kigoCache.size}エントリ`);
-
-    // デバッグ: 冬木立がキャッシュに含まれているかチェック
-    if (kigoCache.has('冬木立')) {
-        console.log('🔍 冬木立がキャッシュに見つかりました:', kigoCache.get('冬木立'));
-    } else {
-        console.log('❌ 冬木立がキャッシュに見つかりません');
-    }
 }
 
 // =============================================================================
@@ -169,11 +162,6 @@ function extractKigo(haikuText) {
                         });
                     }
                 });
-            }
-
-            // デバッグ: 冬木立の場合の詳細チェック
-            if (term === '冬木立') {
-                console.log(`🔍 冬木立チェック: "${term}" in "${text}" = ${text.includes(term)}`);
             }
 
             // タイムアウト制御
