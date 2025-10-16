@@ -139,9 +139,10 @@ function extractKigo(haikuText) {
 
     const text = haikuText.trim();
 
-    // 文字数制限チェック
-    if (text.length < PERFORMANCE_CONFIG.MIN_TEXT_LENGTH) return [];
-    if (text.length > PERFORMANCE_CONFIG.MAX_HAIKU_LENGTH) return [];
+    // 文字数制限チェック（スペースと句読点を除いた実質文字数で判定）
+    const actualLength = countHaikuCharacters(text);
+    if (actualLength < PERFORMANCE_CONFIG.MIN_TEXT_LENGTH) return [];
+    if (actualLength > PERFORMANCE_CONFIG.MAX_HAIKU_LENGTH) return [];
 
     const startTime = Date.now();
     const matches = new Map(); // 重複排除用
@@ -198,13 +199,23 @@ function extractKigo(haikuText) {
 }
 
 /**
+ * 俳句の実質文字数をカウント（スペースと句読点を除く）
+ * @param {string} text - 俳句テキスト
+ * @returns {number} 実質文字数
+ */
+function countHaikuCharacters(text) {
+    // スペース、句読点（、。）、改行を除外して文字数をカウント
+    return text.replace(/[\s、。]/g, '').length;
+}
+
+/**
  * 俳句の文字数による処理可否判定
  * @param {string} haikuText - 俳句テキスト
  * @returns {Object} 判定結果
  */
 function validateHaikuForKigo(haikuText) {
     const text = (haikuText || '').trim();
-    const length = text.length;
+    const length = countHaikuCharacters(text);
 
     if (length < PERFORMANCE_CONFIG.MIN_TEXT_LENGTH) {
         return {
@@ -218,7 +229,7 @@ function validateHaikuForKigo(haikuText) {
         return {
             isValid: false,
             reason: 'too_long',
-            message: '俳句は19文字以下で入力してください'
+            message: ''
         };
     }
 
