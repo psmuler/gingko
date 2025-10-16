@@ -598,6 +598,7 @@ function createInlineFormHTML() {
         showHeader: true,
         showSwipeIndicator: true,
         submitButtonText: '投稿',
+        showDraftButton: true,
         placeholder: '斧入れて香に驚くや冬木立'
     });
 
@@ -614,13 +615,20 @@ function createInlineFormHTML() {
     if (inlineFormContainer) {
         console.log('✅ インラインフォームコンテナDOMに追加成功 (component化)');
 
-        // Setup close handlers using component function
-        setupFormCloseHandlers('inline-form-container', hideInlineForm);
+        // Setup close handlers using component function (with textarea ID for unsaved content check)
+        setupFormCloseHandlers('inline-form-container', hideInlineForm, 'inline-haiku-text');
 
         // Setup form submit handler
         const form = document.getElementById('inline-haiku-form');
         if (form) {
             form.addEventListener('submit', handleInlineSubmit);
+        }
+
+        // Setup draft button handler
+        const draftBtn = document.getElementById('inline-haiku-form-draft-btn');
+        if (draftBtn) {
+            draftBtn.addEventListener('click', handleDraftSave);
+            console.log('✅ 下書き保存ボタンハンドラー設定完了');
         }
     } else {
         console.error('❌ インラインフォームコンテナの追加に失敗');
@@ -879,6 +887,102 @@ async function handleInlineSubmit(event) {
     } catch (error) {
         console.error('❌ 俳句投稿エラー:', error);
         showErrorMessage('投稿に失敗しました: ' + error.message);
+    } finally {
+        isSubmittingHaiku = false;
+    }
+}
+
+/**
+ * 下書き保存処理
+ * @param {Event} event - clickイベント
+ */
+async function handleDraftSave(event) {
+    event.preventDefault();
+
+    if (isSubmittingHaiku) return;
+
+    try {
+        isSubmittingHaiku = true;
+        const form = document.getElementById('inline-haiku-form');
+        if (!form) {
+            throw new Error('フォームが見つかりません');
+        }
+
+        const formData = new FormData(form);
+        const haikuText = formData.get('haiku_text');
+
+        // 入力チェック
+        if (!haikuText || haikuText.trim() === '') {
+            showErrorMessage('俳句を入力してください');
+            return;
+        }
+
+        // 位置情報の取得
+        let location;
+        if (currentPinLocation) {
+            location = currentPinLocation;
+            console.log('📍 ピンの位置で下書き保存:', location);
+        } else {
+            location = await getCurrentLocationForSubmit();
+            console.log('📍 現在地で下書き保存:', location);
+        }
+
+        // 季語選択状態を取得
+        let selectedKigoInfo = { season: 'その他', selectedKigo: null, isSeasonless: false };
+        if (typeof getCurrentKigoSelection === 'function') {
+            selectedKigoInfo = getCurrentKigoSelection();
+        }
+
+        // 下書きデータの構築
+        const draftData = {
+            haiku_text: haikuText.trim(),
+            poet_name: '詠み人知らず',
+            latitude: location.lat,
+            longitude: location.lng,
+            location_type: 'ゆかりの地',
+            location_name: '',
+            season: selectedKigoInfo.season || 'その他',
+            seasonal_term: selectedKigoInfo.selectedKigo?.display_name || '',
+            description: '',
+            date_composed: new Date().toISOString().split('T')[0],
+            status: 'draft'  // 下書きとして保存
+        };
+
+        console.log('💾 下書き保存開始:', draftData);
+
+        // API投稿 (status='draft' で保存)
+        await submitHaikuData(draftData);
+
+        // 成功処理
+        showSuccessMessage('下書きを保存しました！');
+
+        // フォームをリセット
+        form.reset();
+
+        // 季語選択状態をリセット
+        resetKigoSelection();
+
+        // 季語サジェストコンテナをクリア
+        const suggestionsContainer = document.getElementById('kigo-suggestions');
+        if (suggestionsContainer) {
+            suggestionsContainer.innerHTML = '';
+            suggestionsContainer.className = 'kigo-suggestions';
+        }
+
+        // currentPinLocationをリセット
+        currentPinLocation = null;
+
+        // 一時ピンを削除
+        await removeTemporaryPinAsync();
+
+        // バックアップデータをクリア
+        localStorage.removeItem('haiku_draft_backup');
+
+        console.log('✅ 下書き保存完了');
+
+    } catch (error) {
+        console.error('❌ 下書き保存エラー:', error);
+        showErrorMessage('下書き保存に失敗しました: ' + error.message);
     } finally {
         isSubmittingHaiku = false;
     }
@@ -1319,7 +1423,8 @@ async function submitHaikuData(haikuData) {
         location_type: haikuData.location_type,
         location_name: haikuData.location_name,
         season: haikuData.season,
-        seasonal_term: haikuData.seasonal_term
+        seasonal_term: haikuData.seasonal_term,
+        status: haikuData.status || 'published'  // status を追加 (デフォルト: published)
     };
 
     const result = await apiAdapter.createHaiku(submitData);

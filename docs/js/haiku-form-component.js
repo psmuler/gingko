@@ -15,6 +15,7 @@ import { attachKigoSuggestionToInput, getCurrentKigoSelection } from './kigo-sug
  * @param {boolean} options.showHeader - Whether to show form header (default: true)
  * @param {boolean} options.showSwipeIndicator - Whether to show swipe indicator (default: false)
  * @param {string} options.submitButtonText - Submit button text (default: "投稿")
+ * @param {boolean} options.showDraftButton - Whether to show draft save button (default: false)
  * @param {string} options.placeholder - Textarea placeholder
  * @param {number} options.rows - Textarea rows (default: 1)
  * @returns {string} Form HTML string
@@ -28,15 +29,13 @@ export function createHaikuForm(options = {}) {
         showHeader = true,
         showSwipeIndicator = false,
         submitButtonText = '投稿',
+        showDraftButton = false,
         placeholder = '斧入れて香に驚くや冬木立',
         rows = 1
     } = options;
 
-    const headerHTML = showHeader ? `
-        <div class="form-header">
-            <h3>俳句を投稿</h3>
-            <button class="close-btn" type="button" onclick="window.closeHaikuForm && window.closeHaikuForm()">×</button>
-        </div>
+    const closeButtonHTML = showHeader ? `
+        <button class="close-btn" type="button" onclick="window.closeHaikuForm && window.closeHaikuForm()" style="position: absolute; top: 10px; right: 10px; background: transparent; border: none; font-size: 24px; cursor: pointer; color: #666; z-index: 1000;">×</button>
     ` : '';
 
     const swipeIndicatorHTML = showSwipeIndicator ? `
@@ -52,10 +51,10 @@ export function createHaikuForm(options = {}) {
 
     return `
         ${swipeIndicatorHTML}
-        ${headerHTML}
+        ${closeButtonHTML}
         <form id="${formId}">
             <div class="form-group">
-                <label for="${textAreaId}">俳句</label>
+                <label for="${textAreaId}">新句</label>
                 <textarea id="${textAreaId}" name="haiku_text" required
                           placeholder="${placeholder}" rows="${rows}"></textarea>
             </div>
@@ -75,10 +74,12 @@ export function createHaikuForm(options = {}) {
             <input type="hidden" id="inline-keyword-id" name="keyword_id">
 
             <div class="form-actions">
-                <button type="button" class="secondary-btn close-form-btn">
-                    キャンセル
+                ${showDraftButton ? `
+                <button type="button" class="secondary-btn draft-btn" id="${formId}-draft-btn">
+                    下書き保存
                 </button>
-                <button type="submit" class="primary-btn">
+                ` : ''}
+                <button type="submit" class="primary-btn" id="${formId}-submit-btn">
                     ${submitButtonText}
                 </button>
             </div>
@@ -151,8 +152,9 @@ function waitForElement(elementId, timeout = 5000) {
  * Setup form close handlers
  * @param {string} containerId - Container element ID
  * @param {Function} closeCallback - Close callback function
+ * @param {string} textAreaId - Textarea ID to check for unsaved content
  */
-export function setupFormCloseHandlers(containerId, closeCallback) {
+export function setupFormCloseHandlers(containerId, closeCallback, textAreaId = null) {
     const container = document.getElementById(containerId);
     if (!container) {
         console.warn(`⚠️ Container ${containerId} not found`);
@@ -164,6 +166,19 @@ export function setupFormCloseHandlers(containerId, closeCallback) {
     closeButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
+
+            // Check for unsaved content
+            if (textAreaId) {
+                const textArea = document.getElementById(textAreaId);
+                if (textArea && textArea.value.trim().length > 0) {
+                    // Confirm deletion of draft
+                    const confirmDelete = confirm('入力中の内容を破棄しますか？');
+                    if (!confirmDelete) {
+                        return; // Cancel closing
+                    }
+                }
+            }
+
             if (closeCallback) closeCallback();
         });
     });
