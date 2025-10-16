@@ -27,7 +27,7 @@ const KIGO_DEBOUNCE_DELAY = 100; // 100ms
 
 // パフォーマンス設定
 const PERFORMANCE_CONFIG = {
-    MIN_TEXT_LENGTH: 5,           // 最小文字数（5文字以上で検索開始）
+    MIN_TEXT_LENGTH: 1,           // 最小文字数（1文字以上で検索開始）
     MAX_HAIKU_LENGTH: 19,         // 俳句最大文字数（20文字以上は無効）
     MAX_SUGGESTIONS: 5,           // 最大サジェスト数
     MATCH_TIMEOUT: 50            // マッチング処理タイムアウト（ms）
