@@ -4,7 +4,7 @@
  */
 
 import { dict } from './kigo-gatcha.js';
-import { MAP_CONFIG } from './config.js';
+import { getSeasonColor as getConfigSeasonColor } from './utils/season.js';
 
 /**
  * Get current season based on month
@@ -117,6 +117,5 @@ export function markVisited() {
  */
 export function getSeasonColor(season) {
     const seasonName = getSeasonNameJa(season);
-    const colors = MAP_CONFIG?.MARKER_COLORS || {};
-    return colors[seasonName] || colors['その他'] || '#95a5a6';
+    return getConfigSeasonColor(seasonName);
 }

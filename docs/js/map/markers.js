@@ -3,6 +3,7 @@ import { apiAdapter } from '../api-adapter.js';
 import { getSupabaseClient } from '../supabase-client.js';
 import { appState } from '../core/app-state.js';
 import { showInfoMessage, showErrorMessage, showLoadingState, hideLoadingState } from '../ui/messages.js';
+import { getSeasonColor, getSeasonTextColor } from '../utils/season.js';
 
 export async function loadHaikuData() {
     if (!appState.markersLayer) {
@@ -236,18 +237,6 @@ function getMostCommonSeason(cluster) {
     }
 
     return mostCommonSeason;
-}
-
-function getSeasonColor(season) {
-    const colors = MAP_CONFIG.MARKER_COLORS || {};
-    return colors[season] || colors['その他'] || '#95a5a6';
-}
-
-function getSeasonTextColor(season) {
-    if (season === '秋' || season === '暮・新年') {
-        return '#333';
-    }
-    return '#fff';
 }
 
 async function hasUtamakura(text) {
