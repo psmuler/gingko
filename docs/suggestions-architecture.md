@@ -1,6 +1,6 @@
 # Kigo Suggestion Modules
 
-The suggestion system is now composed of two layers:
+The suggestion system is now composed of two layers (see [Issue #38](https://github.com/psmuler/gingko/issues/38)):
 
 - `docs/js/kigo-suggestions.js` keeps the detection engine, in-memory cache, and UI helpers for building suggestion buttons. It exports the core API (`initializeKigoSuggestions`, `attachKigoSuggestionToInput`, `getCurrentKigoSelection`, etc.).
 - `docs/js/seasonal-suggest.js` acts as a lightweight bridge that simply ensures the shared engine is initialised and forwards attachment requests. It no longer owns a separate Supabase query or rendering flow. Modules can call `attachSeasonalSuggestion` with an input/container pair to opt-in to automatic suggestions.

@@ -4,7 +4,7 @@
  */
 
 import { getSupabaseClient } from './supabase-client.js';
-import { MAP_CONFIG } from './config.js';
+import { getSeasonColor } from './utils/season.js';
 
 // =============================================================================
 // グローバル変数とキャッシュ
@@ -348,11 +348,6 @@ function createSeasonlessButton() {
  * @param {string} season - 季節
  * @returns {string} カラーコード
  */
-function getSeasonColor(season) {
-    const colors = MAP_CONFIG?.MARKER_COLORS || {};
-    return colors[season] || colors['その他'] || '#95a5a6';
-}
-
 // =============================================================================
 // 季語選択処理
 // =============================================================================
