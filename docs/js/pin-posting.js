@@ -16,6 +16,7 @@ import { createHaikuForm, initializeKigoSuggestion, setupFormCloseHandlers } fro
 let inlineFormContainer = null;
 let isInlineFormVisible = false;
 let currentPinLocation = null;
+let currentEditingHaiku = null;  // 編集中の俳句メタデータを保持
 let touchStartY = 0;
 let touchStartTime = 0;
 
@@ -681,6 +682,9 @@ function showInlineForm(lat, lng) {
         return;
     }
 
+    // 新規投稿モードでは編集状態をクリア
+    currentEditingHaiku = null;
+
     // 位置情報をフォームにセット
     currentPinLocation = { lat, lng };
 
@@ -730,6 +734,7 @@ function showInlineFormWithoutPin() {
 
     // currentPinLocation は null のまま（投稿時に現在地を取得）
     currentPinLocation = null;
+    currentEditingHaiku = null;
 
     // フォームリセット
     const form = document.getElementById('inline-haiku-form');
@@ -775,11 +780,42 @@ function showInlineFormForEdit(haikuData) {
         return;
     }
 
-    // 位置情報を保持（編集時は変更しない）
-    currentPinLocation = {
-        lat: haikuData.latitude,
-        lng: haikuData.longitude
+    // 編集対象データを保持（位置情報やステータスを更新時に再利用）
+    const rawLatitude = typeof haikuData.latitude === 'number'
+        ? haikuData.latitude
+        : (haikuData.latitude !== undefined && haikuData.latitude !== null
+            ? parseFloat(haikuData.latitude)
+            : null);
+
+    const rawLongitude = typeof haikuData.longitude === 'number'
+        ? haikuData.longitude
+        : (haikuData.longitude !== undefined && haikuData.longitude !== null
+            ? parseFloat(haikuData.longitude)
+            : null);
+
+    const sanitizedLatitude = Number.isFinite(rawLatitude) ? rawLatitude : null;
+    const sanitizedLongitude = Number.isFinite(rawLongitude) ? rawLongitude : null;
+
+    currentEditingHaiku = {
+        id: haikuData.id,
+        latitude: sanitizedLatitude,
+        longitude: sanitizedLongitude,
+        location_type: haikuData.location_type || 'ゆかりの地',
+        location_name: haikuData.location_name || '',
+        status: haikuData.status || 'draft',
+        season: haikuData.season || null,
+        seasonal_term: haikuData.seasonal_term || ''
     };
+
+    // 位置情報を保持（編集時は変更しない）
+    if (sanitizedLatitude !== null && sanitizedLongitude !== null) {
+        currentPinLocation = {
+            lat: sanitizedLatitude,
+            lng: sanitizedLongitude
+        };
+    } else {
+        currentPinLocation = null;
+    }
 
     // フォームを表示
     inlineFormContainer.classList.add('active');
@@ -793,6 +829,36 @@ function showInlineFormForEdit(haikuData) {
         return;
     }
 
+    // 編集に必要なメタデータをフォームに保持（データ属性経由）
+    form.dataset.locationType = currentEditingHaiku.location_type;
+    form.dataset.locationName = currentEditingHaiku.location_name;
+    form.dataset.status = currentEditingHaiku.status;
+    form.dataset.originalSeason = currentEditingHaiku.season || '';
+    form.dataset.originalSeasonalTerm = currentEditingHaiku.seasonal_term || '';
+
+    // 既存の位置情報をフォーム表示要素に反映
+    const latField = document.getElementById('inline-latitude');
+    const lngField = document.getElementById('inline-longitude');
+    if (latField) {
+        latField.value = currentEditingHaiku.latitude ?? '';
+    }
+    if (lngField) {
+        lngField.value = currentEditingHaiku.longitude ?? '';
+    }
+
+    const locationDisplayElements = document.querySelectorAll('.location-display');
+    if (locationDisplayElements.length > 0) {
+        if (currentPinLocation) {
+            locationDisplayElements.forEach(element => {
+                element.textContent = `緯度: ${currentPinLocation.lat.toFixed(6)}, 経度: ${currentPinLocation.lng.toFixed(6)}`;
+            });
+        } else {
+            locationDisplayElements.forEach(element => {
+                element.textContent = '位置情報が設定されていません';
+            });
+        }
+    }
+
     // テキストエリアに俳句本文をセット
     const haikuTextArea = document.getElementById('inline-haiku-text');
     if (haikuTextArea) {
@@ -802,12 +868,6 @@ function showInlineFormForEdit(haikuData) {
     // 編集モードフラグを設定
     form.dataset.editMode = 'true';
     form.dataset.editId = haikuData.id;
-
-    // ボタンテキストを変更
-    const submitBtn = document.getElementById('submit-haiku-btn');
-    if (submitBtn) {
-        submitBtn.textContent = '更新する';
-    }
 
     // フォーカス設定と季語サジェスト機能のアタッチ
     setTimeout(async () => {
@@ -841,11 +901,21 @@ function hideInlineForm() {
     resetTemporaryPinState();
 
     currentPinLocation = null;
+    currentEditingHaiku = null;
 
     // 季語選択状態もリセット
     if (typeof resetKigoSelection === 'function') {
         resetKigoSelection();
         console.log('✅ 季語選択状態リセット完了');
+    }
+
+    const form = document.getElementById('inline-haiku-form');
+    if (form) {
+        delete form.dataset.locationType;
+        delete form.dataset.locationName;
+        delete form.dataset.status;
+        delete form.dataset.originalSeason;
+        delete form.dataset.originalSeasonalTerm;
     }
 
     console.log('📍 インラインフォーム非表示 + 一時ピン状態リセット');
@@ -923,11 +993,42 @@ async function handleInlineSubmit(event) {
             // ===== 編集モード =====
             console.log(`📝 俳句更新開始: ID=${editId}`);
 
-            // 更新データ（位置情報は含めない）
+            const editingMetadata = currentEditingHaiku || {};
+            const hasStoredLocation =
+                typeof editingMetadata.latitude === 'number' &&
+                typeof editingMetadata.longitude === 'number';
+
+            const locationSource = currentPinLocation || (hasStoredLocation
+                ? { lat: editingMetadata.latitude, lng: editingMetadata.longitude }
+                : null);
+
+            const normalizedLatitude = locationSource ? Number(locationSource.lat) : null;
+            const normalizedLongitude = locationSource ? Number(locationSource.lng) : null;
+
+            const latitudeForUpdate = Number.isFinite(normalizedLatitude) ? normalizedLatitude : null;
+            const longitudeForUpdate = Number.isFinite(normalizedLongitude) ? normalizedLongitude : null;
+
+            const updatedSeason = (selectedKigoInfo?.season && selectedKigoInfo.season !== '')
+                ? selectedKigoInfo.season
+                : (editingMetadata.season || 'その他');
+
+            const updatedSeasonalTerm = selectedKigoInfo?.selectedKigo?.display_name
+                || editingMetadata.seasonal_term
+                || '';
+
+            const originalStatus = editingMetadata.status || 'published';
+            const statusForUpdate = originalStatus === 'draft' ? 'published' : originalStatus;
+
+            // 更新データ（保存済み位置を維持し、下書きは公開扱いに昇格）
             const updateData = {
                 haiku_text: haikuText.trim(),
-                season: selectedKigoInfo.season || 'その他',
-                seasonal_term: selectedKigoInfo.selectedKigo?.display_name || ''
+                season: updatedSeason,
+                seasonal_term: updatedSeasonalTerm,
+                latitude: latitudeForUpdate,
+                longitude: longitudeForUpdate,
+                location_type: editingMetadata.location_type || 'ゆかりの地',
+                location_name: editingMetadata.location_name || '',
+                status: statusForUpdate
             };
 
             // API更新
@@ -946,14 +1047,14 @@ async function handleInlineSubmit(event) {
             delete form.dataset.editMode;
             delete form.dataset.editId;
 
-            // ボタンテキストを元に戻す
-            const submitBtn = document.getElementById('submit-haiku-btn');
-            if (submitBtn) {
-                submitBtn.textContent = '投稿';
-            }
-
             // フォームをリセット
             form.reset();
+
+            delete form.dataset.locationType;
+            delete form.dataset.locationName;
+            delete form.dataset.status;
+            delete form.dataset.originalSeason;
+            delete form.dataset.originalSeasonalTerm;
 
             // 季語選択状態をリセット
             resetKigoSelection();
@@ -967,6 +1068,7 @@ async function handleInlineSubmit(event) {
 
             // currentPinLocationをリセット
             currentPinLocation = null;
+            currentEditingHaiku = null;
 
             // 地図データ更新
             await loadHaikuData();

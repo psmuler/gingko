@@ -562,7 +562,10 @@ class SupabaseHaikuClient {
             location_type: haiku.location_type,
             location_name: haiku.location_name,
             date_composed: haiku.date_composed,
-            description: haiku.description
+            description: haiku.description,
+            season: haiku.season || null,
+            seasonal_term: haiku.seasonal_term || '',
+            status: haiku.status || 'published'
         };
     }
 
