@@ -902,13 +902,16 @@ async function hasUtamakura(text) {
 
 // APIデータから俳句マーカーを地図に追加
 async function addHaikuMarkerFromAPI(haikuData) {
-    const { id, latitude, longitude, location_name, haiku_text, poet_name, location_type, description, season, poetry_type } = haikuData;
+    const { id, latitude, longitude, location_name, haiku_text, poet_name, location_type, description, season, poetry_type, status } = haikuData;
 
     // 緯度経度の検証
     if (!latitude || !longitude || latitude === 0 || longitude === 0) {
         console.warn('無効な座標データ:', haikuData);
         return;
     }
+
+    // 下書きかどうかの判定
+    const isDraft = status === 'draft';
 
     // 短歌・歌枕の判定
     const isTanka = poetry_type === '短歌';
@@ -918,9 +921,10 @@ async function addHaikuMarkerFromAPI(haikuData) {
 
     if (isTanka && hasUtamakuraFlag) {
         // 歌枕を含む短歌: 紫色のモダンな山のアイコン
+        const draftClass = isDraft ? 'draft' : '';
         iconHtml = `
-            <div class="existing-pin pin-appear">
-                <div class="pin-mountain utamakura">
+            <div class="existing-pin pin-appear ${draftClass}">
+                <div class="pin-mountain utamakura ${draftClass}">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="#8e44ad">
                         <path d="M12 2l-2 4-4 2 4 2 2 4 2-4 4-2-4-2-2-4z M8 12l-3 6h14l-3-6-4 2-4-2z"/>
                     </svg>
@@ -929,32 +933,34 @@ async function addHaikuMarkerFromAPI(haikuData) {
         `;
         iconSize = [24, 30];
         iconAnchor = [12, 30];
-        markerClassName = 'tanka utamakura';
+        markerClassName = `tanka utamakura ${draftClass}`;
     } else if (isTanka) {
         // 歌枕を含まない短歌: 灰色の通常の涙型アイコン
+        const draftClass = isDraft ? 'draft' : '';
         iconHtml = `
-            <div class="existing-pin pin-appear">
-                <div class="pin-teardrop tanka-no-utamakura" style="background-color: #95a5a6;">
+            <div class="existing-pin pin-appear ${draftClass}">
+                <div class="pin-teardrop tanka-no-utamakura ${draftClass}" style="background-color: #95a5a6;">
                     <div class="pin-dot"></div>
                 </div>
             </div>
         `;
         iconSize = [24, 30];
         iconAnchor = [12, 30];
-        markerClassName = 'tanka no-utamakura';
+        markerClassName = `tanka no-utamakura ${draftClass}`;
     } else {
-        // 俳句: 既存の季節別色分け
+        // 俳句: 既存の季節別色分け (下書きの場合は点線枠)
         const iconColor = MAP_CONFIG.MARKER_COLORS[season] || MAP_CONFIG.MARKER_COLORS['その他'];
+        const draftClass = isDraft ? 'draft' : '';
         iconHtml = `
-            <div class="existing-pin pin-appear">
-                <div class="pin-teardrop ${season || 'その他'}" style="background-color: ${iconColor};">
+            <div class="existing-pin pin-appear ${draftClass}">
+                <div class="pin-teardrop ${season || 'その他'} ${draftClass}" style="background-color: ${iconColor};">
                     <div class="pin-dot"></div>
                 </div>
             </div>
         `;
         iconSize = [24, 30];
         iconAnchor = [12, 30];
-        markerClassName = `haiku season-${season || 'other'}`;
+        markerClassName = `haiku season-${season || 'other'} ${draftClass}`;
     }
 
     // カスタムアイコンを作成
@@ -985,7 +991,8 @@ async function addHaikuMarkerFromAPI(haikuData) {
         poet_name,
         location_type,
         season,
-        description
+        description,
+        status
     });
 
     marker.bindPopup(popupContent, {
@@ -1018,13 +1025,17 @@ async function addHaikuMarkerFromAPI(haikuData) {
 
 // 俳句ポップアップコンテンツを作成
 function createHaikuPopupContent(haiku) {
-    const { id, location_name, haiku_text, poet_name, location_type, description, season, preface } = haiku;
+    const { id, location_name, haiku_text, poet_name, location_type, description, season, preface, status } = haiku;
+
+    // 下書きかどうかを判定
+    const isDraft = status === 'draft';
 
     return `
         <div class="haiku-popup" data-haiku-id="${id}">
             ${preface ? `<div class="haiku-preface">${preface}</div>` : ''}
             <div class="popup-header">
                 <span class="season-badge season-${season || 'other'}">${season || 'その他'}</span>
+                ${isDraft ? '<span class="draft-badge">下書き</span>' : ''}
             </div>
             <div class="haiku-content">
                 <div class="haiku-text">${haiku_text}</div>
@@ -1033,10 +1044,40 @@ function createHaikuPopupContent(haiku) {
             ${location_name ? `<div class="location-info">${location_name}</div>` : ''}
             ${description ? `<div class="haiku-description">${description}</div>` : ''}
             <div class="popup-actions">
+                ${isDraft ? `<button class="btn-edit" onclick="editHaiku(${id})">編集</button>` : ''}
                 <button class="btn-detail" onclick="showHaikuDetail(${id})">詳細を見る</button>
             </div>
         </div>
     `;
+}
+
+// 俳句編集（インラインフォームで編集）
+async function editHaiku(haikuId) {
+    console.log(`📝 俳句編集開始: ID=${haikuId}`);
+
+    try {
+        // ポップアップを閉じる
+        map.closePopup();
+
+        // APIから俳句データ取得
+        const haiku = await apiAdapter.getHaiku(haikuId);
+
+        if (!haiku) {
+            throw new Error('俳句データが見つかりません');
+        }
+
+        console.log('✅ 俳句データ取得:', haiku);
+
+        // インラインフォームを編集モードで開く（pin-posting.jsの関数）
+        if (typeof window.showInlineFormForEdit === 'function') {
+            window.showInlineFormForEdit(haiku);
+        } else {
+            console.error('❌ showInlineFormForEdit関数が見つかりません');
+        }
+    } catch (error) {
+        console.error('❌ 俳句編集エラー:', error);
+        showErrorMessage('俳句の編集に失敗しました');
+    }
 }
 
 // 俳句詳細表示
@@ -1486,6 +1527,7 @@ if (typeof window !== 'undefined') {
     window.submitHaiku = submitHaiku;
     window.closeModal = closeModal;
     window.showHaikuDetail = showHaikuDetail;
+    window.editHaiku = editHaiku;
     window.closeAbout = closeAbout;
 
     console.log('✅ script.js グローバル関数をwindowに公開');

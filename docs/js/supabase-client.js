@@ -63,7 +63,7 @@ class SupabaseHaikuClient {
 
     /**
      * 地図用俳句データを取得（詠み人情報付き）
-     * 下書きは除外し、投稿済みのみを取得
+     * 下書きと投稿済みの両方を取得
      */
     async getHaikusForMap() {
         await this.ensureInitialized();
@@ -79,19 +79,19 @@ class SupabaseHaikuClient {
                     location_type,
                     location_name,
                     season,
+                    status,
                     poets (
                         id,
                         name,
                         name_kana
                     )
                 `)
-                .eq('status', 'published')
                 .not('latitude', 'is', null)
                 .not('longitude', 'is', null);
 
             if (error) throw error;
 
-            console.log(`✅ 地図用俳句データ取得: ${data.length}件 (投稿済みのみ)`);
+            console.log(`✅ 地図用俳句データ取得: ${data.length}件 (下書き含む)`);
             return data.map(this.formatHaikuForMap);
         } catch (error) {
             console.error('❌ 地図用俳句データ取得エラー:', error);
@@ -268,6 +268,32 @@ class SupabaseHaikuClient {
         } catch (error) {
             console.error('❌ 俳句投稿エラー:', error);
             throw new Error('俳句投稿に失敗しました');
+        }
+    }
+
+    /**
+     * 俳句を更新
+     */
+    async updateHaiku(id, haikuData) {
+        await this.ensureInitialized();
+
+        try {
+            const formattedData = this.formatHaikuForInsert(haikuData);
+
+            const { data, error } = await this.supabase
+                .from('haikus')
+                .update(formattedData)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ 俳句更新完了:', data.id);
+            return { success: true, id: data.id, data };
+        } catch (error) {
+            console.error('❌ 俳句更新エラー:', error);
+            throw new Error('俳句更新に失敗しました');
         }
     }
 
@@ -516,7 +542,8 @@ class SupabaseHaikuClient {
             longitude: parseFloat(haiku.longitude),
             location_type: haiku.location_type,
             location_name: haiku.location_name,
-            season: haiku.season
+            season: haiku.season,
+            status: haiku.status || 'published'
         };
     }
 

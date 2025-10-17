@@ -234,6 +234,39 @@ async function refreshHaikuCache() {
 }
 
 /**
+ * キャッシュ内の特定俳句を更新
+ * @param {number} haikuId - 更新する俳句のID
+ */
+async function updateHaikuInCache(haikuId) {
+    try {
+        console.log(`🔄 キャッシュ更新: ID=${haikuId}`);
+
+        // APIから最新データを取得
+        const updatedHaiku = await apiAdapter.getHaiku(haikuId);
+
+        if (!updatedHaiku) {
+            console.warn(`⚠️ 俳句が見つかりません: ID=${haikuId}`);
+            return;
+        }
+
+        // キャッシュ内の該当データを探して更新
+        const index = haikuDataCache.findIndex(h => h.id === haikuId);
+
+        if (index !== -1) {
+            // 既存データを更新
+            haikuDataCache[index] = updatedHaiku;
+            console.log(`✅ キャッシュ更新完了: ID=${haikuId}`);
+        } else {
+            // 新規データを追加
+            haikuDataCache.push(updatedHaiku);
+            console.log(`✅ キャッシュに追加: ID=${haikuId}`);
+        }
+    } catch (error) {
+        console.error(`❌ キャッシュ更新エラー: ID=${haikuId}`, error);
+    }
+}
+
+/**
  * 指定位置の既存俳句をチェック（高速キャッシュ版）
  * @param {number} lat - 緯度
  * @param {number} lng - 経度
@@ -731,6 +764,66 @@ function showInlineFormWithoutPin() {
 }
 
 /**
+ * インラインフォームを編集モードで表示
+ * @param {Object} haikuData - 編集対象の俳句データ
+ */
+function showInlineFormForEdit(haikuData) {
+    console.log('📝 編集モードでインラインフォーム表示:', haikuData);
+
+    if (!inlineFormContainer) {
+        console.error('❌ inlineFormContainer が見つかりません');
+        return;
+    }
+
+    // 位置情報を保持（編集時は変更しない）
+    currentPinLocation = {
+        lat: haikuData.latitude,
+        lng: haikuData.longitude
+    };
+
+    // フォームを表示
+    inlineFormContainer.classList.add('active');
+    isInlineFormVisible = true;
+    console.log('✅ インラインフォーム表示');
+
+    // フォームに既存データをセット
+    const form = document.getElementById('inline-haiku-form');
+    if (!form) {
+        console.error('❌ inline-haiku-form が見つかりません');
+        return;
+    }
+
+    // テキストエリアに俳句本文をセット
+    const haikuTextArea = document.getElementById('inline-haiku-text');
+    if (haikuTextArea) {
+        haikuTextArea.value = haikuData.haiku_text || '';
+    }
+
+    // 編集モードフラグを設定
+    form.dataset.editMode = 'true';
+    form.dataset.editId = haikuData.id;
+
+    // ボタンテキストを変更
+    const submitBtn = document.getElementById('submit-haiku-btn');
+    if (submitBtn) {
+        submitBtn.textContent = '更新する';
+    }
+
+    // フォーカス設定と季語サジェスト機能のアタッチ
+    setTimeout(async () => {
+        if (haikuTextArea) {
+            haikuTextArea.focus();
+            console.log('✅ フォーカス設定完了');
+
+            // 季語サジェスト機能をアタッチ
+            await initializeKigoSuggestion('inline-haiku-text', 'kigo-suggestions');
+        }
+    }, 300);
+
+    console.log('✅ 編集モードフォーム設定完了');
+}
+
+/**
  * インラインフォームの非表示
  */
 function hideInlineForm() {
@@ -805,20 +898,19 @@ async function handleInlineSubmit(event) {
 
     if (isSubmittingHaiku) return;
 
+    const form = event.target;
+    const isEditMode = form.dataset.editMode === 'true';
+    const editId = form.dataset.editId;
+
     try {
         isSubmittingHaiku = true;
-        const formData = new FormData(event.target);
+        const formData = new FormData(form);
+        const haikuText = formData.get('haiku_text');
 
-        // 位置情報の取得
-        let location;
-        if (currentPinLocation) {
-            // ピンが置かれている場合はその位置を使用
-            location = currentPinLocation;
-            console.log('📍 ピンの位置で投稿:', location);
-        } else {
-            // ピンがない場合は投稿時の現在地を取得
-            location = await getCurrentLocationForSubmit();
-            console.log('📍 投稿時の現在地を取得:', location);
+        // 入力チェック
+        if (!haikuText || haikuText.trim() === '') {
+            showErrorMessage('俳句を入力してください');
+            return;
         }
 
         // 季語選択状態を取得
@@ -827,66 +919,139 @@ async function handleInlineSubmit(event) {
             selectedKigoInfo = getCurrentKigoSelection();
         }
 
-        // 俳句データの構築（Phase 2: 季語情報統合）
-        const haikuData = {
-            haiku_text: formData.get('haiku_text'),
-            poet_name: '詠み人知らず',              // デフォルト
-            latitude: location.lat,
-            longitude: location.lng,
-            location_type: 'ゆかりの地',           // デフォルト
-            location_name: '',                     // 空文字
-            season: selectedKigoInfo.season || 'その他',
-            seasonal_term: selectedKigoInfo.selectedKigo?.display_name || '',
-            description: '',                       // 空文字
-            date_composed: new Date().toISOString().split('T')[0] // 今日の日付
-        };
+        if (isEditMode) {
+            // ===== 編集モード =====
+            console.log(`📝 俳句更新開始: ID=${editId}`);
 
-        console.log('📍 俳句投稿開始:', haikuData);
+            // 更新データ（位置情報は含めない）
+            const updateData = {
+                haiku_text: haikuText.trim(),
+                season: selectedKigoInfo.season || 'その他',
+                seasonal_term: selectedKigoInfo.selectedKigo?.display_name || ''
+            };
 
-        // API投稿
-        await submitHaikuData(haikuData);
+            // API更新
+            const result = await apiAdapter.updateHaiku(parseInt(editId), updateData);
 
-        // 一時的ピンを永続ピンに変換（ピンがある場合のみ）
-        if (currentPinLocation) {
-            convertTemporaryPinToPermanent(haikuData.season);
-        }
+            if (!result.success) {
+                throw new Error('更新に失敗しました');
+            }
 
-        // 成功処理
-        showSuccessMessage('俳句を投稿しました！');
+            console.log('✅ 俳句更新成功:', result);
 
-        // フォームをリセット（隠さずに次の句を入力できるようにする）
-        const form = document.getElementById('inline-haiku-form');
-        if (form) {
+            // 成功処理
+            showSuccessMessage('俳句を更新しました！');
+
+            // 編集モードフラグをクリア
+            delete form.dataset.editMode;
+            delete form.dataset.editId;
+
+            // ボタンテキストを元に戻す
+            const submitBtn = document.getElementById('submit-haiku-btn');
+            if (submitBtn) {
+                submitBtn.textContent = '投稿';
+            }
+
+            // フォームをリセット
             form.reset();
-            console.log('✅ フォームリセット完了');
+
+            // 季語選択状態をリセット
+            resetKigoSelection();
+
+            // 季語サジェストコンテナをクリア
+            const suggestionsContainer = document.getElementById('kigo-suggestions');
+            if (suggestionsContainer) {
+                suggestionsContainer.innerHTML = '';
+                suggestionsContainer.className = 'kigo-suggestions';
+            }
+
+            // currentPinLocationをリセット
+            currentPinLocation = null;
+
+            // 地図データ更新
+            await loadHaikuData();
+
+            // キャッシュ内の該当俳句を更新
+            await updateHaikuInCache(parseInt(editId));
+
+            console.log('✅ 更新完了、フォームを新規投稿モードに戻しました');
+
+        } else {
+            // ===== 新規作成モード =====
+            console.log('📍 新規俳句投稿開始');
+
+            // 位置情報の取得
+            let location;
+            if (currentPinLocation) {
+                // ピンが置かれている場合はその位置を使用
+                location = currentPinLocation;
+                console.log('📍 ピンの位置で投稿:', location);
+            } else {
+                // ピンがない場合は投稿時の現在地を取得
+                location = await getCurrentLocationForSubmit();
+                console.log('📍 投稿時の現在地を取得:', location);
+            }
+
+            // 俳句データの構築（Phase 2: 季語情報統合）
+            const haikuData = {
+                haiku_text: haikuText.trim(),
+                poet_name: '詠み人知らず',              // デフォルト
+                latitude: location.lat,
+                longitude: location.lng,
+                location_type: 'ゆかりの地',           // デフォルト
+                location_name: '',                     // 空文字
+                season: selectedKigoInfo.season || 'その他',
+                seasonal_term: selectedKigoInfo.selectedKigo?.display_name || '',
+                description: '',                       // 空文字
+                date_composed: new Date().toISOString().split('T')[0] // 今日の日付
+            };
+
+            console.log('📍 俳句投稿データ:', haikuData);
+
+            // API投稿
+            const result = await submitHaikuData(haikuData);
+
+            // 一時的ピンを永続ピンに変換（ピンがある場合のみ）
+            if (currentPinLocation) {
+                convertTemporaryPinToPermanent(haikuData.season);
+            }
+
+            // 成功処理
+            showSuccessMessage('俳句を投稿しました！');
+
+            // フォームをリセット（隠さずに次の句を入力できるようにする）
+            form.reset();
+
+            // 季語選択状態をリセット
+            resetKigoSelection();
+
+            // 季語サジェストコンテナをクリア
+            const suggestionsContainer = document.getElementById('kigo-suggestions');
+            if (suggestionsContainer) {
+                suggestionsContainer.innerHTML = '';
+                suggestionsContainer.className = 'kigo-suggestions';
+            }
+
+            // currentPinLocationをリセット（次の投稿も投稿時の現在地を使う）
+            currentPinLocation = null;
+
+            // 一時ピンを削除
+            await removeTemporaryPinAsync();
+
+            // 地図データ更新
+            await loadHaikuData();
+
+            // キャッシュ内の該当俳句を更新
+            if (result.data && result.data.id) {
+                await updateHaikuInCache(result.data.id);
+            }
+
+            console.log('✅ 投稿完了、フォームは表示したまま次の句を入力可能');
         }
-
-        // 季語選択状態をリセット
-        resetKigoSelection();
-        console.log('✅ 季語選択状態リセット完了');
-
-        // 季語サジェストコンテナをクリア
-        const suggestionsContainer = document.getElementById('kigo-suggestions');
-        if (suggestionsContainer) {
-            suggestionsContainer.innerHTML = '';
-            suggestionsContainer.className = 'kigo-suggestions';
-            console.log('✅ 季語サジェスト表示クリア完了');
-        }
-
-        // currentPinLocationをリセット（次の投稿も投稿時の現在地を使う）
-        currentPinLocation = null;
-
-        // 一時ピンを削除
-        await removeTemporaryPinAsync();
-
-        // 地図データ更新
-        await loadHaikuData();
-
-        console.log('✅ 投稿完了、フォームは表示したまま次の句を入力可能');
 
     } catch (error) {
-        console.error('❌ 俳句投稿エラー:', error);
-        showErrorMessage('投稿に失敗しました: ' + error.message);
+        console.error('❌ 俳句投稿/更新エラー:', error);
+        showErrorMessage(isEditMode ? '更新に失敗しました: ' + error.message : '投稿に失敗しました: ' + error.message);
     } finally {
         isSubmittingHaiku = false;
     }
@@ -951,7 +1116,7 @@ async function handleDraftSave(event) {
         console.log('💾 下書き保存開始:', draftData);
 
         // API投稿 (status='draft' で保存)
-        await submitHaikuData(draftData);
+        const result = await submitHaikuData(draftData);
 
         // 成功処理
         showSuccessMessage('下書きを保存しました！');
@@ -977,6 +1142,14 @@ async function handleDraftSave(event) {
 
         // バックアップデータをクリア
         localStorage.removeItem('haiku_draft_backup');
+
+        // キャッシュ内の該当俳句を更新
+        if (result.data && result.data.id) {
+            await updateHaikuInCache(result.data.id);
+        }
+
+        // 地図データ更新(下書きピンを表示)
+        await loadHaikuData();
 
         console.log('✅ 下書き保存完了');
 
@@ -1541,6 +1714,7 @@ if (typeof window !== 'undefined') {
     window.addNewHaikuAtLocation = addNewHaikuAtLocation;
     window.showAllHaikusAtLocation = showAllHaikusAtLocation;
     window.handleInlineSubmit = handleInlineSubmit;
+    window.showInlineFormForEdit = showInlineFormForEdit;  // 編集用フォーム表示関数を公開
 
     // Phase2統合のために必要な関数をグローバルに公開
     window.showTemporaryPinFromPinPosting = showTemporaryPin;

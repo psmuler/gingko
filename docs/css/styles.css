@@ -665,6 +665,56 @@ main {
     justify-content: flex-end;
     align-items: flex-start;
     margin-bottom: 12px;
+    gap: 8px;
+}
+
+/* 季節バッジ */
+.season-badge {
+    font-size: 0.75rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.season-badge.season-春 {
+    background-color: var(--spring-color);
+}
+
+.season-badge.season-夏 {
+    background-color: var(--summer-color);
+}
+
+.season-badge.season-秋 {
+    background-color: var(--autumn-color);
+    color: var(--text-color);
+    border: 1px solid var(--text-light);
+}
+
+.season-badge.season-冬 {
+    background-color: var(--winter-color);
+}
+
+.season-badge.season-暮・新年 {
+    background-color: var(--newyear-color);
+    color: var(--text-color);
+}
+
+.season-badge.season-other,
+.season-badge.season-その他 {
+    background-color: var(--other-color);
+}
+
+/* 下書きバッジ */
+.draft-badge {
+    font-size: 0.75rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background-color: #6c757d;
+    color: white;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
 .location-name {
@@ -738,10 +788,13 @@ main {
 .popup-actions {
     margin-top: 12px;
     text-align: center;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
 }
 
-.btn-detail {
-    background-color: #2c5aa0;
+.btn-detail,
+.btn-edit {
     color: white;
     border: none;
     padding: 6px 12px;
@@ -751,8 +804,20 @@ main {
     transition: background-color 0.3s;
 }
 
+.btn-detail {
+    background-color: #2c5aa0;
+}
+
 .btn-detail:hover {
     background-color: #1e4080;
+}
+
+.btn-edit {
+    background-color: #28a745;
+}
+
+.btn-edit:hover {
+    background-color: #218838;
 }
 
 /* ローディングオーバーレイ */
@@ -1566,6 +1631,22 @@ main {
 /* 暮・新年（黄）ピンのドットは黒 */
 .pin-teardrop.暮・新年 .pin-dot {
     background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* =============================================================================
+   下書きピン用スタイル
+   ============================================================================= */
+
+/* 下書き用のピンスタイル（点線枠 + 透明度）*/
+.pin-teardrop.draft {
+    border: 2px dashed rgba(0, 0, 0, 0.5);
+    opacity: 0.7;
+}
+
+/* 下書き用の山アイコン（短歌）も点線枠 */
+.pin-mountain.draft {
+    border: 2px dashed rgba(142, 68, 173, 0.7);
+    opacity: 0.7;
 }
 
 /* 初期状態 */
