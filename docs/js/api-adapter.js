@@ -94,6 +94,22 @@ class APIAdapter {
         return await this.client.createHaiku(haikuData);
     }
 
+    /**
+     * 俳句を更新
+     */
+    async updateHaiku(id, haikuData) {
+        await this.ensureInitialized();
+        return await this.client.updateHaiku(id, haikuData);
+    }
+
+    /**
+     * 下書き一覧を取得
+     */
+    async getDrafts() {
+        await this.ensureInitialized();
+        return await this.client.getDrafts();
+    }
+
     // =============================================================================
     // 詠み人関連API
     // =============================================================================

@@ -63,10 +63,11 @@ class SupabaseHaikuClient {
 
     /**
      * 地図用俳句データを取得（詠み人情報付き）
+     * 下書きと投稿済みの両方を取得
      */
     async getHaikusForMap() {
         await this.ensureInitialized();
-        
+
         try {
             const { data, error } = await this.supabase
                 .from('haikus')
@@ -78,6 +79,7 @@ class SupabaseHaikuClient {
                     location_type,
                     location_name,
                     season,
+                    status,
                     poets (
                         id,
                         name,
@@ -88,8 +90,8 @@ class SupabaseHaikuClient {
                 .not('longitude', 'is', null);
 
             if (error) throw error;
-            
-            console.log(`✅ 地図用俳句データ取得: ${data.length}件`);
+
+            console.log(`✅ 地図用俳句データ取得: ${data.length}件 (下書き含む)`);
             return data.map(this.formatHaikuForMap);
         } catch (error) {
             console.error('❌ 地図用俳句データ取得エラー:', error);
@@ -249,10 +251,10 @@ class SupabaseHaikuClient {
      */
     async createHaiku(haikuData) {
         await this.ensureInitialized();
-        
+
         try {
             const formattedData = this.formatHaikuForInsert(haikuData);
-            
+
             const { data, error } = await this.supabase
                 .from('haikus')
                 .insert([formattedData])
@@ -260,12 +262,75 @@ class SupabaseHaikuClient {
                 .single();
 
             if (error) throw error;
-            
+
             console.log('✅ 俳句投稿完了:', data.id);
             return { success: true, id: data.id, data };
         } catch (error) {
             console.error('❌ 俳句投稿エラー:', error);
             throw new Error('俳句投稿に失敗しました');
+        }
+    }
+
+    /**
+     * 俳句を更新
+     */
+    async updateHaiku(id, haikuData) {
+        await this.ensureInitialized();
+
+        try {
+            const formattedData = this.formatHaikuForInsert(haikuData);
+
+            const { data, error } = await this.supabase
+                .from('haikus')
+                .update(formattedData)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ 俳句更新完了:', data.id);
+            return { success: true, id: data.id, data };
+        } catch (error) {
+            console.error('❌ 俳句更新エラー:', error);
+            throw new Error('俳句更新に失敗しました');
+        }
+    }
+
+    /**
+     * 下書き一覧を取得
+     * @returns {Array} 下書き俳句の配列
+     */
+    async getDrafts() {
+        await this.ensureInitialized();
+
+        try {
+            const { data, error } = await this.supabase
+                .from('haikus')
+                .select(`
+                    id,
+                    haiku_text,
+                    latitude,
+                    longitude,
+                    season,
+                    seasonal_term,
+                    created_at,
+                    updated_at,
+                    poets (
+                        id,
+                        name
+                    )
+                `)
+                .eq('status', 'draft')
+                .order('updated_at', { ascending: false });
+
+            if (error) throw error;
+
+            console.log(`✅ 下書き一覧取得: ${data.length}件`);
+            return data;
+        } catch (error) {
+            console.error('❌ 下書き一覧取得エラー:', error);
+            throw new Error('下書き一覧を取得できませんでした');
         }
     }
 
@@ -477,7 +542,8 @@ class SupabaseHaikuClient {
             longitude: parseFloat(haiku.longitude),
             location_type: haiku.location_type,
             location_name: haiku.location_name,
-            season: haiku.season
+            season: haiku.season,
+            status: haiku.status || 'published'
         };
     }
 
@@ -496,7 +562,10 @@ class SupabaseHaikuClient {
             location_type: haiku.location_type,
             location_name: haiku.location_name,
             date_composed: haiku.date_composed,
-            description: haiku.description
+            description: haiku.description,
+            season: haiku.season || null,
+            seasonal_term: haiku.seasonal_term || '',
+            status: haiku.status || 'published'
         };
     }
 
@@ -528,7 +597,8 @@ class SupabaseHaikuClient {
             description: haikuData.description || '',
             season: haikuData.season || null,
             seasonal_term: haikuData.seasonal_term || null,
-            keyword_id: haikuData.keyword_id || null  // 季語IDフィールドを追加
+            keyword_id: haikuData.keyword_id || null,  // 季語IDフィールド
+            status: haikuData.status || 'published'     // ステータス (デフォルト: published)
         };
     }
 

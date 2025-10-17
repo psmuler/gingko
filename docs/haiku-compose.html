@@ -54,6 +54,8 @@
         import { createHaikuForm, initializeKigoSuggestion } from './js/haiku-form-component.js';
 
         let selectedKigoFromGatcha = null;
+        let editMode = false;
+        let editingHaikuId = null;
 
         // Initialize
         async function init() {
@@ -61,11 +63,25 @@
             const urlParams = new URLSearchParams(window.location.search);
             const kigoParam = urlParams.get('kigo');
             const experiencedParam = urlParams.get('experienced');
+            const editParam = urlParams.get('edit');
 
             // Update header subtitle based on source
             const headerSubtitle = document.getElementById('header-subtitle');
 
-            if (experiencedParam === 'true') {
+            // 編集モードの判定
+            if (editParam) {
+                editMode = true;
+                editingHaikuId = parseInt(editParam);
+
+                // ヘッダー変更
+                const headerTitle = document.querySelector('header h1');
+                if (headerTitle) {
+                    headerTitle.textContent = '俳句を編集';
+                }
+                if (headerSubtitle) {
+                    headerSubtitle.style.display = 'none';
+                }
+            } else if (experiencedParam === 'true') {
                 // Experienced user - hide kigo display
                 if (headerSubtitle) {
                     headerSubtitle.style.display = 'none';
@@ -94,7 +110,9 @@
             if (formContainer) {
                 // Determine placeholder based on source
                 let placeholder;
-                if (experiencedParam === 'true') {
+                if (editMode) {
+                    placeholder = '読み込み中...';
+                } else if (experiencedParam === 'true') {
                     placeholder = '一番最近詠んだ句は';
                 } else if (selectedKigoFromGatcha) {
                     placeholder = selectedKigoFromGatcha.kigo;
@@ -109,7 +127,7 @@
                     showPoetField: true,
                     showHeader: false,
                     showSwipeIndicator: false,
-                    submitButtonText: '詠んだ！',
+                    submitButtonText: editMode ? '更新する' : '詠んだ！',
                     placeholder: placeholder
                 });
                 formContainer.innerHTML = formHTML;
@@ -123,6 +141,11 @@
                 console.log('✅ フォーム生成完了 (component化)');
             }
 
+            // 編集モードの場合、既存データを読み込む
+            if (editMode && editingHaikuId) {
+                await loadHaikuForEdit(editingHaikuId);
+            }
+
             // Initialize kigo suggestion feature
             try {
                 await initializeKigoSuggestions();
@@ -133,13 +156,43 @@
             }
         }
 
+        // Load haiku data for editing
+        async function loadHaikuForEdit(haikuId) {
+            try {
+                console.log(`📖 俳句データ読み込み中: ID=${haikuId}`);
+                const haiku = await apiAdapter.getHaiku(haikuId);
+
+                if (!haiku) {
+                    throw new Error('俳句が見つかりませんでした');
+                }
+
+                // フォームにデータを設定
+                const haikuTextArea = document.getElementById('haiku-text');
+                const poetNameInput = document.getElementById('poet-name');
+
+                if (haikuTextArea) {
+                    haikuTextArea.value = haiku.haiku_text || '';
+                }
+
+                if (poetNameInput) {
+                    poetNameInput.value = haiku.poet_name || '';
+                }
+
+                console.log('✅ 俳句データ読み込み完了:', haiku);
+            } catch (error) {
+                console.error('❌ 俳句データ読み込みエラー:', error);
+                alert('俳句データの読み込みに失敗しました');
+                window.location.href = 'home.html';
+            }
+        }
+
         // Submit haiku
         window.submitHaiku = async function (event) {
             event.preventDefault();
 
             const submitBtn = document.getElementById('submit-haiku-btn');
             submitBtn.disabled = true;
-            submitBtn.textContent = '投稿中...';
+            submitBtn.textContent = editMode ? '更新中...' : '投稿中...';
 
             try {
                 // Get form data
@@ -148,9 +201,6 @@
 
                 // Get kigo selection
                 const kigoSelection = getCurrentKigoSelection();
-
-                // Get current location or use default
-                const location = await getCurrentLocationOrDefault();
 
                 // Get or create poet_id
                 let poetId = null;
@@ -162,38 +212,49 @@
                     }
                 }
 
-                // Prepare haiku data (using correct schema)
+                // Prepare haiku data
                 const haikuData = {
                     haiku_text: haikuText,
                     poet_id: poetId,
-                    latitude: location.latitude,
-                    longitude: location.longitude,
-                    location_name: location.name,
-                    location_type: 'ゆかりの地',
                     season: kigoSelection.season || null,
                     seasonal_term: kigoSelection.selectedKigo?.display_name || null
                 };
 
-                console.log('📤 投稿データ:', haikuData);
-
-                // Submit using API adapter
-                const result = await apiAdapter.createHaiku(haikuData);
-
-                if (!result.success) {
-                    throw new Error('投稿に失敗しました');
+                // 編集モードの場合は位置情報を含めない（既存のまま）
+                if (!editMode) {
+                    // Get current location or use default
+                    const location = await getCurrentLocationOrDefault();
+                    haikuData.latitude = location.latitude;
+                    haikuData.longitude = location.longitude;
+                    haikuData.location_name = location.name;
+                    haikuData.location_type = 'ゆかりの地';
                 }
 
-                console.log('✅ 投稿成功:', result);
-                alert('俳句を投稿しました！');
+                console.log(`📤 ${editMode ? '更新' : '投稿'}データ:`, haikuData);
+
+                // Submit or update using API adapter
+                let result;
+                if (editMode) {
+                    result = await apiAdapter.updateHaiku(editingHaikuId, haikuData);
+                } else {
+                    result = await apiAdapter.createHaiku(haikuData);
+                }
+
+                if (!result.success) {
+                    throw new Error(`${editMode ? '更新' : '投稿'}に失敗しました`);
+                }
+
+                console.log(`✅ ${editMode ? '更新' : '投稿'}成功:`, result);
+                alert(`俳句を${editMode ? '更新' : '投稿'}しました！`);
 
                 // Redirect to home
                 window.location.href = 'home.html';
 
             } catch (error) {
-                console.error('❌ 投稿エラー:', error);
-                alert('投稿に失敗しました。もう一度お試しください。');
+                console.error(`❌ ${editMode ? '更新' : '投稿'}エラー:`, error);
+                alert(`${editMode ? '更新' : '投稿'}に失敗しました。もう一度お試しください。`);
                 submitBtn.disabled = false;
-                submitBtn.textContent = '詠んだ！';
+                submitBtn.textContent = editMode ? '更新する' : '詠んだ！';
             }
         };
 

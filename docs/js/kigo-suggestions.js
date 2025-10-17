@@ -4,6 +4,7 @@
  */
 
 import { getSupabaseClient } from './supabase-client.js';
+import { MAP_CONFIG } from './config.js';
 
 // =============================================================================
 // グローバル変数とキャッシュ
@@ -348,16 +349,8 @@ function createSeasonlessButton() {
  * @returns {string} カラーコード
  */
 function getSeasonColor(season) {
-    const seasonColors = {
-        '春': '#3498db',     // 青
-        '夏': '#e74c3c',     // 赤
-        '秋': '#ffffff',     // 白
-        '冬': '#2c3e50',     // 黒
-        '暮・新年': '#f1c40f', // 黄
-        'その他': '#95a5a6'   // グレー
-    };
-
-    return seasonColors[season] || seasonColors['その他'];
+    const colors = MAP_CONFIG?.MARKER_COLORS || {};
+    return colors[season] || colors['その他'] || '#95a5a6';
 }
 
 // =============================================================================
