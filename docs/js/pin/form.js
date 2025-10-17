@@ -4,7 +4,7 @@ import { apiAdapter } from '../api-adapter.js';
 import { getCurrentKigoSelection, resetKigoSelection } from '../kigo-suggestions.js';
 import { createHaikuForm, initializeKigoSuggestion, setupFormCloseHandlers } from '../haiku-form-component.js';
 import { pinState, clearInlineFormMetadata } from './state.js';
-import { removeTemporaryPinAsync, convertTemporaryPinToPermanent } from './temporary-pin.js';
+import { removeTemporaryPinAsync, convertTemporaryPinToPermanent, pauseTemporaryPinAutoRemoval } from './temporary-pin.js';
 import { updateHaikuInCache } from './cache.js';
 
 const utils = window.utils || {};
@@ -237,6 +237,8 @@ export function showInlineForm(lat, lng) {
     pinState.currentEditingHaiku = null;
     pinState.currentPinLocation = { lat, lng };
 
+    pauseTemporaryPinAutoRemoval('インラインフォーム表示中');
+
     const form = document.getElementById('inline-haiku-form');
     if (!form) {
         console.error('❌ inline-haiku-form が見つかりません');
@@ -270,6 +272,8 @@ export function showInlineFormWithoutPin() {
 
     pinState.currentPinLocation = null;
     pinState.currentEditingHaiku = null;
+
+    pauseTemporaryPinAutoRemoval('インラインフォーム（ピンなし）表示中');
 
     const form = document.getElementById('inline-haiku-form');
     if (!form) {
@@ -338,6 +342,8 @@ export function showInlineFormForEdit(haikuData) {
 
     pinState.inlineFormContainer.classList.add('active');
     pinState.isInlineFormVisible = true;
+
+    pauseTemporaryPinAutoRemoval('編集モードフォーム表示中');
 
     const form = document.getElementById('inline-haiku-form');
     if (!form) {

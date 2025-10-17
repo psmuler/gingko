@@ -85,12 +85,7 @@ export async function showTemporaryPin(lat, lng) {
 
         clearExistingTimeouts();
 
-        pinState.temporaryPinTimeout = setTimeout(async () => {
-            console.log('⏰ 一時ピン自動削除タイマー実行');
-            await removeTemporaryPinAsync();
-        }, AUTO_REMOVE_DELAY);
-
-        temporaryPinState.timeout = pinState.temporaryPinTimeout;
+        scheduleTemporaryPinAutoRemoval();
 
         console.log(`📍 一時的ピン表示完了: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
     } catch (error) {
@@ -195,6 +190,11 @@ export function resetTemporaryPinState() {
     }
 }
 
+export function pauseTemporaryPinAutoRemoval(reason = 'フォーム表示中') {
+    clearExistingTimeouts();
+    console.log(`⏸️ 一時ピン自動削除をキャンセル: ${reason}`);
+}
+
 async function performSmoothPinTransition(newLat, newLng) {
     const { temporaryPinState } = pinState;
 
@@ -262,6 +262,29 @@ function clearExistingTimeouts() {
         clearTimeout(pinState.temporaryPinState.timeout);
         pinState.temporaryPinState.timeout = null;
     }
+}
+
+function scheduleTemporaryPinAutoRemoval() {
+    const { temporaryPinState } = pinState;
+
+    if (pinState.isInlineFormVisible) {
+        console.log('🛡️ フォーム表示中のため一時ピン自動削除をスキップ');
+        clearExistingTimeouts();
+        return;
+    }
+
+    pinState.temporaryPinTimeout = setTimeout(async () => {
+        if (pinState.isInlineFormVisible) {
+            console.log('🛡️ フォーム表示中のため一時ピン削除をキャンセル');
+            clearExistingTimeouts();
+            return;
+        }
+
+        console.log('⏰ 一時ピン自動削除タイマー実行');
+        await removeTemporaryPinAsync();
+    }, AUTO_REMOVE_DELAY);
+
+    temporaryPinState.timeout = pinState.temporaryPinTimeout;
 }
 
 function isValidCoordinate(lat, lng) {
