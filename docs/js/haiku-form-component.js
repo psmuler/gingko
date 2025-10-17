@@ -103,7 +103,13 @@ export async function initializeKigoSuggestion(textAreaId, suggestionsId) {
         // Wait for DOM element to be available
         await waitForElement(textAreaId);
 
-        attachKigoSuggestionToInput(textAreaId, suggestionsId);
+        const attached = attachKigoSuggestionToInput(textAreaId, suggestionsId);
+        if (attached) {
+            const textArea = document.getElementById(textAreaId);
+            if (textArea) {
+                textArea.dataset.kigoSuggestionAttached = 'true';
+            }
+        }
         console.log(`✅ Kigo suggestion attached: ${textAreaId} -> ${suggestionsId}`);
         return true;
     } catch (error) {

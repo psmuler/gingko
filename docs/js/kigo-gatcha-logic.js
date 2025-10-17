@@ -4,6 +4,7 @@
  */
 
 import { dict } from './kigo-gatcha.js';
+import { MAP_CONFIG } from './config.js';
 
 /**
  * Get current season based on month
@@ -115,11 +116,7 @@ export function markVisited() {
  * @returns {string} CSS color code
  */
 export function getSeasonColor(season) {
-    const colors = {
-        spring: '#3498db',  // Blue
-        summer: '#e74c3c',  // Red
-        autumn: '#ffffff',  // White
-        winter: '#2c3e50'   // Dark blue/black
-    };
-    return colors[season] || '#95a5a6'; // Default gray
+    const seasonName = getSeasonNameJa(season);
+    const colors = MAP_CONFIG?.MARKER_COLORS || {};
+    return colors[seasonName] || colors['その他'] || '#95a5a6';
 }

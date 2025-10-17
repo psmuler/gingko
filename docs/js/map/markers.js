@@ -239,14 +239,8 @@ function getMostCommonSeason(cluster) {
 }
 
 function getSeasonColor(season) {
-    const seasonColors = {
-        '春': '#3498db',
-        '夏': '#e74c3c',
-        '秋': '#f1c40f',
-        '冬': '#2ecc71',
-        'その他': '#7f8c8d'
-    };
-    return seasonColors[season] || seasonColors['その他'];
+    const colors = MAP_CONFIG.MARKER_COLORS || {};
+    return colors[season] || colors['その他'] || '#95a5a6';
 }
 
 function getSeasonTextColor(season) {
