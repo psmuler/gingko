@@ -1185,10 +1185,21 @@ async function handleDraftSave(event) {
         }
 
         // 位置情報の取得
+        const isEditMode = form.dataset.editMode === 'true';
+        const editId = form.dataset.editId ? parseInt(form.dataset.editId, 10) : null;
+
         let location;
         if (currentPinLocation) {
             location = currentPinLocation;
             console.log('📍 ピンの位置で下書き保存:', location);
+        } else if (isEditMode && currentEditingHaiku &&
+            typeof currentEditingHaiku.latitude === 'number' &&
+            typeof currentEditingHaiku.longitude === 'number') {
+            location = {
+                lat: currentEditingHaiku.latitude,
+                lng: currentEditingHaiku.longitude
+            };
+            console.log('📍 編集中の既存位置で下書き保存:', location);
         } else {
             location = await getCurrentLocationForSubmit();
             console.log('📍 現在地で下書き保存:', location);
@@ -1200,7 +1211,99 @@ async function handleDraftSave(event) {
             selectedKigoInfo = getCurrentKigoSelection();
         }
 
-        // 下書きデータの構築
+        if (isEditMode && editId) {
+            // ===== 編集中の下書きを更新 =====
+            const editingMetadata = currentEditingHaiku || {};
+
+            const normalizedLat = location ? Number(location.lat) : null;
+            const normalizedLng = location ? Number(location.lng) : null;
+
+            const latitudeForUpdate = Number.isFinite(normalizedLat) ? normalizedLat : null;
+            const longitudeForUpdate = Number.isFinite(normalizedLng) ? normalizedLng : null;
+
+            const seasonCandidate = selectedKigoInfo?.season || '';
+            const seasonalTermCandidate = selectedKigoInfo?.selectedKigo?.display_name || '';
+
+            const shouldUseDetectedSeason = Boolean(
+                selectedKigoInfo?.selectedKigo ||
+                selectedKigoInfo?.isSeasonless ||
+                (seasonCandidate && seasonCandidate !== 'その他')
+            );
+
+            const updatedSeason = shouldUseDetectedSeason
+                ? (seasonCandidate || 'その他')
+                : (editingMetadata.season || 'その他');
+
+            const updatedSeasonalTerm = shouldUseDetectedSeason
+                ? seasonalTermCandidate
+                : (editingMetadata.seasonal_term || '');
+
+            const updateData = {
+                haiku_text: haikuText.trim(),
+                latitude: latitudeForUpdate,
+                longitude: longitudeForUpdate,
+                location_type: editingMetadata.location_type || 'ゆかりの地',
+                location_name: editingMetadata.location_name || '',
+                season: updatedSeason,
+                seasonal_term: updatedSeasonalTerm,
+                status: 'draft'
+            };
+
+            console.log('💾 下書き更新開始:', { id: editId, updateData });
+
+            const result = await apiAdapter.updateHaiku(editId, updateData);
+
+            if (!result.success) {
+                throw new Error('下書きの更新に失敗しました');
+            }
+
+            showSuccessMessage('下書きを更新しました！');
+
+            // 編集状態を最新データで更新
+            currentEditingHaiku = {
+                ...editingMetadata,
+                id: editId,
+                latitude: latitudeForUpdate,
+                longitude: longitudeForUpdate,
+                location_type: updateData.location_type,
+                location_name: updateData.location_name,
+                season: updateData.season,
+                seasonal_term: updateData.seasonal_term,
+                status: 'draft'
+            };
+
+            if (Number.isFinite(latitudeForUpdate) && Number.isFinite(longitudeForUpdate)) {
+                currentPinLocation = {
+                    lat: latitudeForUpdate,
+                    lng: longitudeForUpdate
+                };
+
+                // フォーム内の位置フィールドも同期
+                const latField = document.getElementById('inline-latitude');
+                const lngField = document.getElementById('inline-longitude');
+                if (latField) latField.value = latitudeForUpdate;
+                if (lngField) lngField.value = longitudeForUpdate;
+
+                const locationDisplayElements = document.querySelectorAll('.location-display');
+                locationDisplayElements.forEach(element => {
+                    element.textContent = `緯度: ${latitudeForUpdate.toFixed(6)}, 経度: ${longitudeForUpdate.toFixed(6)}`;
+                });
+            }
+
+            // バックアップデータをクリア（保存済みのため不要）
+            localStorage.removeItem('haiku_draft_backup');
+            formState.hasUnsavedData = false;
+
+            // キャッシュと地図を更新
+            await updateHaikuInCache(editId);
+            await loadHaikuData();
+
+            console.log('✅ 下書き更新完了');
+
+            return;
+        }
+
+        // ===== 新規下書きを作成 =====
         const draftData = {
             haiku_text: haikuText.trim(),
             poet_name: '詠み人知らず',
