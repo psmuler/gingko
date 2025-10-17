@@ -214,42 +214,37 @@ async function performSmoothPinTransition(newLat, newLng) {
                 return;
             }
 
-            iconElement.classList.add('pin-transition-out');
+            iconElement.classList.add('pin-transition-out', 'moving');
 
             setTimeout(() => {
                 currentPin.setLatLng([newLat, newLng]);
 
-                currentPin._icon.style.transition = 'transform 0.4s ease';
-                currentPin._icon.style.transform = 'scale(0.9)';
+                const pinElement = currentPin._icon?.querySelector('.temporary-pin');
+                if (!pinElement) {
+                    console.warn('⚠️ スムーズ遷移: ピン要素が見つかりません (更新後)');
+                    resolve();
+                    return;
+                }
 
-                setTimeout(() => {
-                    currentPin._icon.style.transform = 'scale(1)';
+                pinElement.classList.remove('pin-transition-out', 'moving');
+                pinElement.classList.add('pin-transition-in');
 
-                    const pinElement = currentPin._icon.querySelector('.temporary-pin');
-                    if (pinElement) {
-                        pinElement.classList.remove('pin-transition-out');
-                        pinElement.classList.add('pin-transition-in');
+                temporaryPinState.location = { lat: newLat, lng: newLng };
 
-                        pinState.temporaryPinState.location = { lat: newLat, lng: newLng };
+                requestAnimationFrame(() => {
+                    pinElement.classList.add('arriving');
+
+                    setTimeout(() => {
+                        pinElement.classList.remove('pin-transition-in', 'arriving');
+                        pinElement.classList.add('pin-location-update');
 
                         setTimeout(() => {
-                            pinElement.classList.add('arriving');
-
-                            setTimeout(() => {
-                                pinElement.classList.remove('pin-transition-in', 'arriving');
-                                pinElement.classList.add('pin-location-update');
-
-                                setTimeout(() => {
-                                    pinElement.classList.remove('pin-location-update');
-                                    console.log(`🎯 スムーズピン遷移完了: ${newLat.toFixed(6)}, ${newLng.toFixed(6)}`);
-                                    resolve();
-                                }, 400);
-                            }, 200);
-                        }, 30);
-                    } else {
-                        resolve();
-                    }
-                }, 100);
+                            pinElement.classList.remove('pin-location-update');
+                            console.log(`🎯 スムーズピン遷移完了: ${newLat.toFixed(6)}, ${newLng.toFixed(6)}`);
+                            resolve();
+                        }, 400);
+                    }, 200);
+                });
             }, 100);
         } catch (error) {
             console.error('❌ スムーズピン遷移エラー:', error);
