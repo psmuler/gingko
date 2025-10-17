@@ -1,3 +1,22 @@
+import '../utils.js';
+
+const utils = window.utils || {};
+const clearDraftFromLocal = typeof utils.clearDraftFromLocal === 'function' ? utils.clearDraftFromLocal : null;
+const DRAFT_STORAGE_KEY = utils.DEFAULT_DRAFT_STORAGE_KEY || 'gingko_current_draft';
+
+function clearDraftStorage() {
+    if (clearDraftFromLocal) {
+        clearDraftFromLocal({ key: DRAFT_STORAGE_KEY });
+        return;
+    }
+
+    try {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch (error) {
+        console.warn('⚠️ Failed to clear draft storage from state reset:', error);
+    }
+}
+
 /**
  * Pin Posting State
  * Centralised state container for the pin-posting workflow.
@@ -49,7 +68,7 @@ export function resetFormState() {
         formState.autoSaveInterval = null;
     }
 
-    localStorage.removeItem('haiku_draft_backup');
+    clearDraftStorage();
 }
 
 export function resetTemporaryPinSnapshot() {

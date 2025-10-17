@@ -264,6 +264,86 @@ async function measureTime(fn, label = 'Function') {
 }
 
 // =============================================================================
+// ローカルストレージユーティリティ
+// =============================================================================
+
+const DEFAULT_DRAFT_STORAGE_KEY = 'gingko_current_draft';
+
+function hasLocalStorageSupport() {
+    try {
+        if (typeof localStorage === 'undefined') {
+            return false;
+        }
+        const testKey = '__gingko_local_storage_test__';
+        localStorage.setItem(testKey, 'ok');
+        localStorage.removeItem(testKey);
+        return true;
+    } catch (error) {
+        console.warn('⚠️ localStorage is not available:', error);
+        return false;
+    }
+}
+
+function saveDraftToLocal(draftData, options = {}) {
+    if (!draftData || typeof draftData !== 'object') {
+        return false;
+    }
+    if (!hasLocalStorageSupport()) {
+        return false;
+    }
+
+    const { key = DEFAULT_DRAFT_STORAGE_KEY } = options;
+
+    const payload = {
+        ...draftData,
+        timestamp: draftData.timestamp || Date.now()
+    };
+
+    try {
+        localStorage.setItem(key, JSON.stringify(payload));
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to save draft to localStorage:', error);
+        return false;
+    }
+}
+
+function loadDraftFromLocal(options = {}) {
+    if (!hasLocalStorageSupport()) {
+        return null;
+    }
+
+    const { key = DEFAULT_DRAFT_STORAGE_KEY } = options;
+
+    try {
+        const stored = localStorage.getItem(key);
+        if (!stored) {
+            return null;
+        }
+        return JSON.parse(stored);
+    } catch (error) {
+        console.error('❌ Failed to load draft from localStorage:', error);
+        return null;
+    }
+}
+
+function clearDraftFromLocal(options = {}) {
+    if (!hasLocalStorageSupport()) {
+        return false;
+    }
+
+    const { key = DEFAULT_DRAFT_STORAGE_KEY } = options;
+
+    try {
+        localStorage.removeItem(key);
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to clear draft from localStorage:', error);
+        return false;
+    }
+}
+
+// =============================================================================
 // ブラウザ機能検出
 // =============================================================================
 
@@ -310,7 +390,12 @@ window.utils = {
     withTimeout,
     retry,
     measureTime,
-    detectBrowserFeatures
+    detectBrowserFeatures,
+    saveDraftToLocal,
+    loadDraftFromLocal,
+    clearDraftFromLocal,
+    hasLocalStorageSupport,
+    DEFAULT_DRAFT_STORAGE_KEY
 };
 
 // 互換性のためのエイリアス

@@ -1,3 +1,4 @@
+import '../utils.js';
 import { showErrorMessage, showSuccessMessage, loadHaikuData } from '../script.js';
 import { apiAdapter } from '../api-adapter.js';
 import { getCurrentKigoSelection, resetKigoSelection } from '../kigo-suggestions.js';
@@ -5,6 +6,173 @@ import { createHaikuForm, initializeKigoSuggestion, setupFormCloseHandlers } fro
 import { pinState, clearInlineFormMetadata } from './state.js';
 import { removeTemporaryPinAsync, convertTemporaryPinToPermanent } from './temporary-pin.js';
 import { updateHaikuInCache } from './cache.js';
+
+const utils = window.utils || {};
+const debounceFn = typeof utils.debounce === 'function' ? utils.debounce : (fn) => fn;
+const saveDraftToLocal = typeof utils.saveDraftToLocal === 'function' ? utils.saveDraftToLocal : null;
+const loadDraftFromLocal = typeof utils.loadDraftFromLocal === 'function' ? utils.loadDraftFromLocal : null;
+const clearDraftFromLocal = typeof utils.clearDraftFromLocal === 'function' ? utils.clearDraftFromLocal : null;
+const hasLocalStorageSupport = typeof utils.hasLocalStorageSupport === 'function'
+    ? utils.hasLocalStorageSupport
+    : () => false;
+
+const DRAFT_STORAGE_KEY = utils.DEFAULT_DRAFT_STORAGE_KEY || 'gingko_current_draft';
+const draftStorageOptions = { key: DRAFT_STORAGE_KEY };
+const inlineDraftCreateContext = 'inline';
+const inlineDraftEditContext = 'inline-edit';
+
+const canUseDraftStorage = hasLocalStorageSupport();
+
+let inlineDraftRestored = false;
+
+function draftStorageAvailable() {
+    return canUseDraftStorage && saveDraftToLocal && loadDraftFromLocal && clearDraftFromLocal;
+}
+
+function clearInlineDraftStorage() {
+    if (draftStorageAvailable()) {
+        clearDraftFromLocal(draftStorageOptions);
+    } else {
+        try {
+            localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch (error) {
+            console.warn('⚠️ Failed to clear inline draft storage fallback:', error);
+        }
+    }
+}
+
+function loadInlineDraft() {
+    if (draftStorageAvailable()) {
+        return loadDraftFromLocal(draftStorageOptions);
+    }
+
+    try {
+        const stored = localStorage.getItem(DRAFT_STORAGE_KEY);
+        return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+        console.warn('⚠️ Failed to load inline draft fallback:', error);
+        return null;
+    }
+}
+
+function saveInlineDraft(payload) {
+    if (!payload) return;
+
+    if (draftStorageAvailable()) {
+        saveDraftToLocal({ ...payload, timestamp: payload.timestamp || Date.now() }, draftStorageOptions);
+        return;
+    }
+
+    try {
+        const data = { ...payload, timestamp: payload.timestamp || Date.now() };
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(data));
+    } catch (error) {
+        console.error('❌ Failed to persist inline draft via fallback:', error);
+    }
+}
+
+function getInlineDraftContext(isEditMode) {
+    return isEditMode ? inlineDraftEditContext : inlineDraftCreateContext;
+}
+
+function persistInlineDraftSnapshot() {
+    const storageSupported = canUseDraftStorage || typeof localStorage !== 'undefined';
+    if (!storageSupported) {
+        return;
+    }
+
+    const textArea = document.getElementById('inline-haiku-text');
+    if (!textArea) {
+        return;
+    }
+
+    const textValue = textArea.value || '';
+    const trimmedText = textValue.trim();
+
+    if (!trimmedText) {
+        clearInlineDraftStorage();
+        return;
+    }
+
+    const form = document.getElementById('inline-haiku-form');
+    const isEditMode = form?.dataset?.editMode === 'true';
+    const haikuId = isEditMode && form?.dataset?.editId ? parseInt(form.dataset.editId, 10) : null;
+
+    let location = pinState.currentPinLocation;
+
+    if (!location && pinState.currentEditingHaiku) {
+        const { latitude, longitude } = pinState.currentEditingHaiku;
+        if (typeof latitude === 'number' && typeof longitude === 'number') {
+            location = { lat: latitude, lng: longitude };
+        }
+    }
+
+    const payload = {
+        text: trimmedText,
+        rawText: textValue,
+        context: getInlineDraftContext(isEditMode),
+        mode: isEditMode ? 'edit' : 'create',
+        haikuId: haikuId || null,
+        location
+    };
+
+    saveInlineDraft(payload);
+}
+
+function maybeRestoreInlineDraft({ editMode = false, haikuId = null } = {}) {
+    const storageSupported = canUseDraftStorage || typeof localStorage !== 'undefined';
+    if (!storageSupported) {
+        return false;
+    }
+
+    if (inlineDraftRestored) {
+        return false;
+    }
+
+    const storedDraft = loadInlineDraft();
+    if (!storedDraft || !storedDraft.text) {
+        return false;
+    }
+
+    const expectedContext = getInlineDraftContext(editMode);
+    if (storedDraft.context && storedDraft.context !== expectedContext) {
+        return false;
+    }
+
+    if (editMode) {
+        if (storedDraft.mode !== 'edit') {
+            return false;
+        }
+
+        if (haikuId && storedDraft.haikuId && parseInt(storedDraft.haikuId, 10) !== parseInt(haikuId, 10)) {
+            return false;
+        }
+    } else if (storedDraft.mode === 'edit') {
+        return false;
+    }
+
+    const shouldRestore = confirm('前回の入力を復元しますか？');
+    if (!shouldRestore) {
+        clearInlineDraftStorage();
+        return false;
+    }
+
+    const textArea = document.getElementById('inline-haiku-text');
+    if (textArea) {
+        const restoredText = storedDraft.rawText || storedDraft.text;
+        textArea.value = restoredText || '';
+        pinState.formState.hasUnsavedData = Boolean(textArea.value.trim());
+        pinState.formState.inputData.haikuText = textArea.value;
+    }
+
+    if (storedDraft.location && typeof storedDraft.location.lat === 'number' && typeof storedDraft.location.lng === 'number') {
+        updateFormLocationInfo(storedDraft.location.lat, storedDraft.location.lng);
+    }
+
+    inlineDraftRestored = true;
+    persistInlineDraftSnapshot();
+    return true;
+}
 
 /**
  * Inline form initialisation. Creates the form HTML and wires up handlers.
@@ -78,6 +246,8 @@ export function showInlineForm(lat, lng) {
     form.reset();
     console.log('✅ フォームリセット完了');
 
+    maybeRestoreInlineDraft({ editMode: false });
+
     pinState.inlineFormContainer.classList.add('active');
     pinState.isInlineFormVisible = true;
 
@@ -108,6 +278,8 @@ export function showInlineFormWithoutPin() {
     }
 
     form.reset();
+
+    maybeRestoreInlineDraft({ editMode: false });
 
     pinState.inlineFormContainer.classList.add('active');
     pinState.isInlineFormVisible = true;
@@ -215,6 +387,8 @@ export function showInlineFormForEdit(haikuData) {
         }
     }, 300);
 
+    maybeRestoreInlineDraft({ editMode: true, haikuId: haikuData.id });
+
     console.log('✅ 編集モードフォーム設定完了');
 }
 
@@ -262,6 +436,8 @@ export function updateFormLocationInfo(lat, lng) {
             formHeader.style.color = '';
         }, 2000);
     }
+
+    persistInlineDraftSnapshot();
 
     console.log(`📍 フォーム位置情報更新完了: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
 }
@@ -462,6 +638,9 @@ async function updateExistingHaiku(form, editId, haikuText, selectedKigoInfo) {
 
     showSuccessMessage('俳句を更新しました！');
 
+    clearInlineDraftStorage();
+    pinState.formState.hasUnsavedData = false;
+
     delete form.dataset.editMode;
     delete form.dataset.editId;
 
@@ -515,6 +694,9 @@ async function submitNewHaiku(form, haikuText, selectedKigoInfo) {
     }
 
     showSuccessMessage('俳句を投稿しました！');
+
+    clearInlineDraftStorage();
+    pinState.formState.hasUnsavedData = false;
 
     form.reset();
     resetKigoSelection();
@@ -610,7 +792,7 @@ async function updateDraftHaiku(editId, haikuText, location, selectedKigoInfo) {
         });
     }
 
-    localStorage.removeItem('haiku_draft_backup');
+    clearInlineDraftStorage();
     pinState.formState.hasUnsavedData = false;
 
     await updateHaikuInCache(editId);
@@ -653,7 +835,8 @@ async function createNewDraft(haikuText, location, selectedKigoInfo) {
 
     pinState.currentPinLocation = null;
     await removeTemporaryPinAsync();
-    localStorage.removeItem('haiku_draft_backup');
+    clearInlineDraftStorage();
+    pinState.formState.hasUnsavedData = false;
 
     if (result.data && result.data.id) {
         await updateHaikuInCache(result.data.id);
@@ -666,25 +849,35 @@ async function createNewDraft(haikuText, location, selectedKigoInfo) {
 function setupFormDataProtection(textArea) {
     if (!textArea) return;
 
+    if (pinState.formState.autoSaveInterval) {
+        clearInterval(pinState.formState.autoSaveInterval);
+        pinState.formState.autoSaveInterval = null;
+    }
+
+    const storageSupported = canUseDraftStorage || typeof localStorage !== 'undefined';
+    const debouncedSave = storageSupported ? debounceFn(() => {
+        persistInlineDraftSnapshot();
+    }, 300) : null;
+
     textArea.addEventListener('input', function () {
         pinState.formState.lastInputTime = Date.now();
         pinState.formState.hasUnsavedData = this.value.trim().length > 0;
         pinState.formState.inputData.haikuText = this.value;
+
+        if (debouncedSave) {
+            debouncedSave();
+        } else {
+            persistInlineDraftSnapshot();
+        }
     });
 
-    if (pinState.formState.autoSaveInterval) {
-        clearInterval(pinState.formState.autoSaveInterval);
-    }
-
-    pinState.formState.autoSaveInterval = setInterval(() => {
-        if (pinState.formState.hasUnsavedData && textArea.value.trim()) {
-            localStorage.setItem('haiku_draft_backup', JSON.stringify({
-                text: textArea.value,
-                timestamp: Date.now(),
-                location: pinState.currentPinLocation
-            }));
+    if (inlineDraftRestored) {
+        if (debouncedSave) {
+            debouncedSave();
+        } else {
+            persistInlineDraftSnapshot();
         }
-    }, 5000);
+    }
 }
 
 async function submitHaikuData(haikuData) {

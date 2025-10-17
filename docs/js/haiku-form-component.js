@@ -182,6 +182,11 @@ export function setupFormCloseHandlers(containerId, closeCallback, textAreaId = 
                     if (!confirmDelete) {
                         return; // Cancel closing
                     }
+
+                    const utils = window.utils || {};
+                    if (typeof utils.clearDraftFromLocal === 'function') {
+                        utils.clearDraftFromLocal();
+                    }
                 }
             }
 

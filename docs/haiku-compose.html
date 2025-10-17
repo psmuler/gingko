@@ -48,6 +48,7 @@
 
     <!-- ES Module Scripts -->
     <script type="module">
+        import './js/utils.js';
         import { initializeKigoSuggestions, getCurrentKigoSelection } from './js/kigo-suggestions.js';
         import { getSupabaseClient } from './js/supabase-client.js';
         import { apiAdapter } from './js/api-adapter.js';
@@ -56,6 +57,22 @@
         let selectedKigoFromGatcha = null;
         let editMode = false;
         let editingHaikuId = null;
+
+        const utils = window.utils || {};
+        const debounceFn = typeof utils.debounce === 'function' ? utils.debounce : (fn) => fn;
+        const saveDraftToLocal = typeof utils.saveDraftToLocal === 'function' ? utils.saveDraftToLocal : null;
+        const loadDraftFromLocal = typeof utils.loadDraftFromLocal === 'function' ? utils.loadDraftFromLocal : null;
+        const clearDraftFromLocal = typeof utils.clearDraftFromLocal === 'function' ? utils.clearDraftFromLocal : null;
+        const hasLocalStorageSupport = typeof utils.hasLocalStorageSupport === 'function'
+            ? utils.hasLocalStorageSupport
+            : () => false;
+        const DRAFT_STORAGE_KEY = utils.DEFAULT_DRAFT_STORAGE_KEY || 'gingko_current_draft';
+        const canUseDraftStorage = hasLocalStorageSupport();
+        const draftStorageOptions = { key: DRAFT_STORAGE_KEY };
+
+        let currentDraftLocation = null;
+        let pendingLocationPromise = null;
+        let draftRestored = false;
 
         // Initialize
         async function init() {
@@ -146,6 +163,10 @@
                 await loadHaikuForEdit(editingHaikuId);
             }
 
+            await maybeRestoreDraft();
+
+            setupDraftAutoSave();
+
             // Initialize kigo suggestion feature
             try {
                 await initializeKigoSuggestions();
@@ -154,6 +175,126 @@
             } catch (error) {
                 console.error('❌ 季語サジェスト機能初期化エラー:', error);
             }
+        }
+
+        function setupDraftAutoSave() {
+            if (!canUseDraftStorage || !saveDraftToLocal || !loadDraftFromLocal || !clearDraftFromLocal) {
+                return;
+            }
+
+            const textArea = document.getElementById('haiku-text');
+            const poetInput = document.getElementById('poet-name');
+
+            if (!textArea) {
+                console.warn('⚠️ Draft auto-save unavailable: textarea not found');
+                return;
+            }
+
+            const debouncedSave = debounceFn(async () => {
+                const textValue = textArea.value;
+                const trimmedText = textValue.trim();
+
+                if (!trimmedText) {
+                    clearDraftFromLocal && clearDraftFromLocal(draftStorageOptions);
+                    return;
+                }
+
+                const location = await ensureDraftLocation();
+
+                const draftContext = editMode ? 'compose-edit' : 'compose';
+
+                saveDraftToLocal({
+                    text: trimmedText,
+                    rawText: textValue,
+                    poetName: poetInput ? poetInput.value.trim() : '',
+                    location,
+                    mode: editMode ? 'edit' : 'create',
+                    haikuId: editMode ? editingHaikuId : null,
+                    context: draftContext
+                }, draftStorageOptions);
+            }, 300);
+
+            textArea.addEventListener('input', debouncedSave);
+            if (poetInput) {
+                poetInput.addEventListener('input', debouncedSave);
+            }
+
+            if (draftRestored) {
+                debouncedSave();
+            }
+        }
+
+        async function ensureDraftLocation() {
+            if (currentDraftLocation) {
+                return currentDraftLocation;
+            }
+
+            if (pendingLocationPromise) {
+                return pendingLocationPromise;
+            }
+
+            pendingLocationPromise = getCurrentLocationOrDefault()
+                .then((location) => {
+                    currentDraftLocation = location;
+                    return location;
+                })
+                .catch((error) => {
+                    console.warn('⚠️ Failed to obtain location for draft storage:', error);
+                    return null;
+                })
+                .finally(() => {
+                    pendingLocationPromise = null;
+                });
+
+            return pendingLocationPromise;
+        }
+
+        async function maybeRestoreDraft() {
+            if (!canUseDraftStorage || !loadDraftFromLocal) {
+                return;
+            }
+
+            const storedDraft = loadDraftFromLocal(draftStorageOptions);
+            if (!storedDraft || !storedDraft.text) {
+                return;
+            }
+
+            const expectedContext = editMode ? 'compose-edit' : 'compose';
+
+            if (storedDraft.context && storedDraft.context !== expectedContext) {
+                return;
+            }
+
+            if (editMode) {
+                if (storedDraft.mode !== 'edit' || storedDraft.haikuId !== editingHaikuId) {
+                    return;
+                }
+            } else if (storedDraft.mode === 'edit') {
+                return;
+            }
+
+            const shouldRestore = confirm('前回の入力を復元しますか？');
+            if (!shouldRestore) {
+                clearDraftFromLocal && clearDraftFromLocal(draftStorageOptions);
+                return;
+            }
+
+            const textArea = document.getElementById('haiku-text');
+            const poetInput = document.getElementById('poet-name');
+
+            if (textArea) {
+                textArea.value = storedDraft.rawText || storedDraft.text || '';
+            }
+
+            if (poetInput && storedDraft.poetName) {
+                poetInput.value = storedDraft.poetName;
+            }
+
+            if (storedDraft.location) {
+                currentDraftLocation = storedDraft.location;
+            }
+
+            draftRestored = true;
         }
 
         // Load haiku data for editing
@@ -245,6 +386,10 @@
                 }
 
                 console.log(`✅ ${editMode ? '更新' : '投稿'}成功:`, result);
+                if (clearDraftFromLocal) {
+                    clearDraftFromLocal(draftStorageOptions);
+                }
+
                 alert(`俳句を${editMode ? '更新' : '投稿'}しました！`);
 
                 // Redirect to home
